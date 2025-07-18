@@ -1,15 +1,46 @@
-import PushNotification from 'react-native-push-notification';
+import SimpleAlarmManager from './SimpleAlarmManager';
 
-export const scheduleAlarm = (id: string, date: Date, message: string) => {
-  PushNotification.localNotificationSchedule({
+const simpleAlarmManager = SimpleAlarmManager.getInstance();
+
+export const scheduleAlarm = async (
+  id: string, 
+  time: Date, 
+  message: string, 
+  repeatDays?: number[]
+): Promise<boolean> => {
+  try {
+    const alarmInfo = {
     id,
+      time,
+      title: 'RiseUp 알람',
     message,
-    date,
-    allowWhileIdle: true,
-    repeatType: 'day',
-  });
+      repeatDays,
+    };
+
+    if (repeatDays && repeatDays.length > 0) {
+      return await simpleAlarmManager.setRepeatingAlarm(alarmInfo);
+    } else {
+      return await simpleAlarmManager.setAlarm(alarmInfo);
+    }
+  } catch (error) {
+    console.error('알람 예약 실패:', error);
+    return false;
+  }
 };
 
-export const cancelAlarm = (id: string) => {
-  PushNotification.cancelLocalNotifications({ id });
+export const cancelAlarm = async (id: string, repeatDays?: number[]): Promise<boolean> => {
+  try {
+    if (repeatDays && repeatDays.length > 0) {
+      return await simpleAlarmManager.cancelRepeatingAlarm(id, repeatDays);
+    } else {
+      return await simpleAlarmManager.cancelAlarm(id);
+    }
+  } catch (error) {
+    console.error('알람 취소 실패:', error);
+    return false;
+  }
+};
+
+export const cancelAllAlarms = async (): Promise<void> => {
+  console.log('모든 알람 취소');
 };

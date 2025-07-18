@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">RiseUp</string>
+    <string name="app_description">아침을 깨우는 스마트 알람</string>
 </resources>

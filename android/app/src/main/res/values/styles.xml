@@ -1,9 +1,17 @@
 <resources>
-
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:editTextColor">#000000</item>
+        <item name="android:textColorHint">#999999</item>
+        <item name="android:statusBarColor">#1a73e8</item>
+        <item name="android:navigationBarColor">#ffffff</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
+    <!-- Launch theme for splash screen -->
+    <style name="LaunchTheme" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/launch_screen</item>
+        <item name="android:statusBarColor">#1a73e8</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

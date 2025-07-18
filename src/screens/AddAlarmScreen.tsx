@@ -1,11 +1,28 @@
 // src/screens/AddAlarmScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, Button, Platform } from 'react-native';
+import { 
+  View, 
+  Text, 
+  Button, 
+  Platform, 
+  TextInput, 
+  StyleSheet, 
+  ScrollView,
+  Alert 
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useAlarm } from '../context/AlarmContext';
+import DaySelector from '../components/DaySelector';
+import SoundSelector from '../components/SoundSelector';
+import { getSoundById } from '../utils/sounds';
 
 export default function AddAlarmScreen({ navigation }: any) {
   const [time, setTime] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [label, setLabel] = useState('알람');
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [selectedSoundId, setSelectedSoundId] = useState('default');
+  const { addAlarm } = useAlarm();
 
   const onChange = (_event: any, selectedDate?: Date) => {
     if (selectedDate) {
@@ -18,16 +35,123 @@ export default function AddAlarmScreen({ navigation }: any) {
     setShowPicker(true);
   };
 
+  const saveAlarm = () => {
+    if (!label.trim()) {
+      Alert.alert('알람 이름을 입력해주세요.');
+      return;
+    }
+
+    addAlarm(time, label.trim(), selectedDays, selectedSoundId);
+    
+    const selectedSound = getSoundById(selectedSoundId);
+    Alert.alert(
+      '알람 추가 완료', 
+      `${time.toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      })} 알람이 추가되었습니다.\n알람음: ${selectedSound.name}`,
+      [{ text: '확인', onPress: () => navigation.goBack() }]
+    );
+  };
+
   return (
-    <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 24, textAlign: 'center', marginBottom: 20 }}>⏰ 알람 시간 설정</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        <Text style={styles.title}>⏰ 알람 추가</Text>
 
-      <Button title="시간 선택하기" onPress={showTimePicker} />
+        {/* 알람 이름 입력 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>알람 이름</Text>
+          <TextInput
+            style={styles.textInput}
+            value={label}
+            onChangeText={setLabel}
+            placeholder="알람 이름을 입력하세요"
+            maxLength={30}
+          />
+        </View>
 
-      <Text style={{ fontSize: 18, marginTop: 20, textAlign: 'center' }}>
-        선택된 시간: {time.toLocaleTimeString()}
+        {/* 시간 선택 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>알람 시간</Text>
+          <View style={styles.timeContainer}>
+            <Text style={styles.timeDisplay}>
+              {time.toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              })}
+            </Text>
+            <Button title="시간 변경" onPress={showTimePicker} />
+          </View>
+        </View>
+
+        {/* 요일 선택 */}
+        <View style={styles.section}>
+          <DaySelector
+            selectedDays={selectedDays}
+            onDaysChange={setSelectedDays}
+          />
+        </View>
+
+        {/* 사운드 선택 */}
+        <View style={styles.section}>
+          <SoundSelector
+            selectedSoundId={selectedSoundId}
+            onSoundChange={setSelectedSoundId}
+          />
+        </View>
+
+        {/* 알람 미리보기 */}
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewTitle}>알람 미리보기</Text>
+          <View style={styles.previewCard}>
+            <Text style={styles.previewTime}>
+              {time.toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              })}
+            </Text>
+            <Text style={styles.previewLabel}>{label}</Text>
+            <Text style={styles.previewDays}>
+              {selectedDays.length === 0 
+                ? '한번만 울림' 
+                : selectedDays.length === 7 
+                ? '매일 반복' 
+                : `${['일','월','화','수','목','금','토']
+                    .filter((_, i) => selectedDays.includes(i))
+                    .join(', ')} 반복`
+              }
+            </Text>
+            <Text style={styles.previewSound}>
+              🔊 {getSoundById(selectedSoundId).name}
       </Text>
+          </View>
+        </View>
 
+        {/* 저장/취소 버튼 */}
+        <View style={styles.buttonContainer}>
+          <View style={styles.buttonRow}>
+            <View style={styles.buttonWrapper}>
+              <Button 
+                title="알람 저장" 
+                onPress={saveAlarm}
+                color="#007AFF"
+              />
+            </View>
+            <View style={styles.buttonWrapper}>
+              <Button 
+                title="취소" 
+                onPress={() => navigation.goBack()} 
+                color="#666"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* DateTimePicker */}
       {showPicker && (
         <DateTimePicker
           value={time}
@@ -37,11 +161,106 @@ export default function AddAlarmScreen({ navigation }: any) {
           onChange={onChange}
         />
       )}
-
-      <Button title="알람 저장" onPress={() => {
-        // TODO: 저장 기능 추가 예정
-        navigation.goBack();
-      }} />
     </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#2D1B14', // 어두운 브라운 배경
+  },
+  content: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30,
+    color: '#FFD4B3', // 밝은 피치
+  },
+  section: {
+    marginBottom: 25,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#FFAB7A', // 따뜻한 오렌지
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: '#4A2C1A', // 중간 톤 브라운
+    color: '#FFD4B3',
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#4A2C1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+  },
+  timeDisplay: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFD4B3',
+  },
+  previewContainer: {
+    marginBottom: 30,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#FFAB7A',
+  },
+  previewCard: {
+    backgroundColor: '#4A2C1A',
+    padding: 20,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#FF7F50', // 코랄 오렌지
+    alignItems: 'center',
+  },
+  previewTime: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FF7F50',
+    marginBottom: 8,
+  },
+  previewLabel: {
+    fontSize: 16,
+    color: '#FFD4B3',
+    marginBottom: 5,
+  },
+  previewDays: {
+    fontSize: 14,
+    color: '#FFAB7A',
+    marginBottom: 5,
+  },
+  previewSound: {
+    fontSize: 14,
+    color: '#FFAB7A',
+    fontWeight: '500',
+  },
+  buttonContainer: {
+    marginTop: 20,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  buttonWrapper: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+});
