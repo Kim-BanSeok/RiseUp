@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "^8.4.2",
     "@react-native-community/push-notification-ios": "^1.11.0",
@@ -21,7 +22,6 @@
     "react": "19.1.0",
     "react-native": "0.80.1",
     "react-native-bootsplash": "^6.3.10",
-    "react-native-document-picker": "^9.3.1",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.27.1",
     "react-native-notifications": "^5.1.0",

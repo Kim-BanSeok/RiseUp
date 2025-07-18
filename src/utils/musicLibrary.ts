@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RNFS from 'react-native-fs';
 
 export interface MusicFile {
   id: string;
@@ -152,13 +153,20 @@ export const stopMusicFile = (): void => {
 // 기본 음악 목록 초기화
 export const initializeDefaultMusic = async (): Promise<void> => {
   try {
-    const existingFiles = await AsyncStorage.getItem(MUSIC_CACHE_KEY);
-    if (!existingFiles) {
-      // 처음 실행 시 기본 음악 목록으로 초기화
-      await saveSelectedMusicFiles(DEFAULT_MUSIC_LIST);
-      console.log('기본 음악 목록으로 초기화 완료');
-    }
+    console.log('기본 음악 라이브러리 사용');
+    // 기본 음악만 사용하도록 설정
   } catch (error) {
-    console.error('기본 음악 목록 초기화 실패:', error);
+    console.error('음악 라이브러리 초기화 실패:', error);
+  }
+};
+
+export const selectMusicFiles = async (): Promise<boolean> => {
+  try {
+    // 임시로 기본 음악만 사용
+    console.log('음악 파일 선택 기능 개발 중 - 기본 음악 사용');
+    return true;
+  } catch (error) {
+    console.error('음악 파일 선택 실패:', error);
+    return false;
   }
 }; 

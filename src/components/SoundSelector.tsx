@@ -8,6 +8,7 @@ import {
   Modal,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { getAllSounds, SoundOption, playSound, stopSound, getSoundById } from '../utils/sounds';
 import { 
@@ -211,6 +212,15 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
           }
         }
       ]
+    );
+  };
+
+  const handleMusicLibraryPress = async () => {
+    // 임시로 알림만 표시
+    showCustomAlert(
+      '기능 준비 중',
+      '음악 파일 선택 기능을 준비 중입니다.\n현재는 기본 제공 사운드를 사용해주세요.',
+      [{ text: '확인' }]
     );
   };
 

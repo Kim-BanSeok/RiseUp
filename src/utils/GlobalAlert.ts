@@ -27,6 +27,11 @@ class GlobalAlert {
     this.alertHandler = handler;
   }
 
+  // App.tsx에서 사용하는 setShowAlert 함수 추가
+  setShowAlert(handler: (title: string, message: string, buttons: AlertButton[], options?: AlertOptions) => void) {
+    this.alertHandler = handler;
+  }
+
   // CustomAlert 핸들러 제거
   removeAlertHandler() {
     this.alertHandler = null;
@@ -49,4 +54,7 @@ class GlobalAlert {
   }
 }
 
-export default GlobalAlert;
+// 싱글톤 인스턴스를 export
+const globalAlertInstance = GlobalAlert.getInstance();
+
+export default globalAlertInstance;
