@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#FFD4B3', // 밝은 피치
+    color: '', // 밝은 피치
   },
   labelText: {
     fontSize: 14,

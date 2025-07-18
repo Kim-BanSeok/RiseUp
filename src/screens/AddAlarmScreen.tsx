@@ -81,6 +81,37 @@ export default function AddAlarmScreen({ navigation }: any) {
     setShowPicker(true);
   };
 
+  // 안전한 사운드 가져오기 함수
+  const getSafeSoundName = (soundId: string) => {
+    try {
+      const sound = getSoundById(soundId);
+      return sound ? sound.name : '기본 알람';
+    } catch (error) {
+      console.error('사운드 가져오기 오류:', error);
+      return '기본 알람';
+    }
+  };
+
+  // 안전한 요일 표시 함수
+  const getSafeDaysText = (days: number[] | undefined) => {
+    try {
+      if (!days || days.length === 0) {
+        return '한번만 울림';
+      }
+      
+      if (days.length === 7) {
+        return '매일 반복';
+      }
+      
+      const dayNames = ['일','월','화','수','목','금','토'];
+      const selectedDayNames = dayNames.filter((_, i) => days.includes(i));
+      return `${selectedDayNames.join(', ')} 반복`;
+    } catch (error) {
+      console.error('요일 표시 오류:', error);
+      return '한번만 울림';
+    }
+  };
+
   const saveAlarm = async () => {
     if (!label.trim()) {
       showCustomAlert('⚠️ 입력 오류', '알람 이름을 입력해주세요.', [
@@ -96,17 +127,17 @@ export default function AddAlarmScreen({ navigation }: any) {
     setIsSaving(true);
 
     try {
-      const success = await addAlarm(time, label.trim(), selectedDays, selectedSoundId);
+      const success = await addAlarm(time, label.trim(), selectedDays || [], selectedSoundId);
       
       if (success) {
-        const selectedSound = getSoundById(selectedSoundId);
+        const soundName = getSafeSoundName(selectedSoundId);
         showCustomAlert(
           '✅ 알람 추가 완료',
           `${time.toLocaleTimeString('ko-KR', { 
             hour: '2-digit', 
             minute: '2-digit',
             hour12: false 
-          })} 알람이 추가되었습니다.\n알람음: ${selectedSound.name}`,
+          })} 알람이 추가되었습니다.\n알람음: ${soundName}`,
           [{ text: '확인', style: 'default', onPress: () => navigation.goBack() }]
         );
       } else {
@@ -183,7 +214,7 @@ export default function AddAlarmScreen({ navigation }: any) {
           {/* 요일 선택 */}
           <View style={styles.section}>
             <DaySelector
-              selectedDays={selectedDays}
+              selectedDays={selectedDays || []}
               onDaysChange={setSelectedDays}
             />
           </View>
@@ -209,17 +240,10 @@ export default function AddAlarmScreen({ navigation }: any) {
               </Text>
               <Text style={styles.previewLabel}>{label}</Text>
               <Text style={styles.previewDays}>
-                {selectedDays.length === 0 
-                  ? '한번만 울림' 
-                  : selectedDays.length === 7 
-                  ? '매일 반복' 
-                  : `${['일','월','화','수','목','금','토']
-                      .filter((_, i) => selectedDays.includes(i))
-                      .join(', ')} 반복`
-                }
+                {getSafeDaysText(selectedDays)}
               </Text>
               <Text style={styles.previewSound}>
-                🔊 {getSoundById(selectedSoundId).name}
+                🔊 {getSafeSoundName(selectedSoundId)}
               </Text>
             </View>
           </View>

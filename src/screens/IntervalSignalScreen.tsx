@@ -287,12 +287,12 @@ const IntervalSignalScreen = ({ navigation }: any) => {
   return (
     <>
       <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
-        {/* 헤더 */}
-        <View style={styles.header}>
+        {/* 헤더 - SafeArea 고려하여 수정 */}
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.title}>⏳ 인터벌 신호</Text>
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => navigation.navigate('AddIntervalTemplate')} // 네비게이션 연결
+            onPress={() => navigation.navigate('AddIntervalTemplate')}
           >
             <Text style={styles.addButtonText}>+ 추가</Text>
           </TouchableOpacity>
@@ -313,7 +313,7 @@ const IntervalSignalScreen = ({ navigation }: any) => {
               </Text>
               {history.length > 0 && (
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('IntervalHistory')} // 네비게이션 연결
+                  onPress={() => navigation.navigate('IntervalHistory')}
                 >
                   <Text style={styles.historyButton}>히스토리</Text>
                 </TouchableOpacity>
@@ -360,6 +360,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    backgroundColor: '#1A1A1A', // 배경색 추가
   },
   title: {
     color: 'white',

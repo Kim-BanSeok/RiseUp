@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TabConfig } from '../components/CustomTabBar';
 import { DEFAULT_TABS } from '../navigation/TabConfig';
@@ -10,137 +10,155 @@ interface TabContextType {
   addTab: (tab: TabConfig) => void;
   removeTab: (tabId: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
-  resetTabs: () => void;
-  updateTab: (tabId: string, updates: Partial<TabConfig>) => void;
-  isTabManagerVisible: boolean;
-  setTabManagerVisible: (visible: boolean) => void;
+  resetToDefault: () => void;
+  isLoading: boolean;
 }
 
 const TabContext = createContext<TabContextType | undefined>(undefined);
 
-const TAB_STORAGE_KEY = '@RiseUp:customTabs';
-const ACTIVE_TAB_KEY = '@RiseUp:activeTab';
+export const useTab = () => {
+  const context = useContext(TabContext);
+  if (!context) {
+    throw new Error('useTab must be used within a TabProvider');
+  }
+  return context;
+};
 
-export const TabProvider = ({ children }: { children: ReactNode }) => {
+interface TabProviderProps {
+  children: ReactNode;
+}
+
+export const TabProvider: React.FC<TabProviderProps> = ({ children }) => {
+  // 초기값을 DEFAULT_TABS로 설정 (절대 빈 배열이 되지 않도록)
   const [tabs, setTabs] = useState<TabConfig[]>(DEFAULT_TABS);
-  const [activeTab, setActiveTab] = useState('Alarm');
-  const [isTabManagerVisible, setTabManagerVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('Alarm');
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // 로딩 완료 여부를 추적하는 ref
+  const isLoadedRef = useRef(false);
 
-  // 앱 시작 시 저장된 탭 설정 로드
   useEffect(() => {
-    loadTabSettings();
+    loadTabs();
   }, []);
 
-  // 탭 설정 변경 시 저장
-  useEffect(() => {
-    saveTabSettings();
-  }, [tabs, activeTab]);
-
-  const loadTabSettings = async () => {
+  const loadTabs = async () => {
     try {
-      const [savedTabs, savedActiveTab] = await Promise.all([
-        AsyncStorage.getItem(TAB_STORAGE_KEY),
-        AsyncStorage.getItem(ACTIVE_TAB_KEY)
-      ]);
-
+      console.log(' 탭 데이터 로딩 시작...');
+      console.log(' 기본 탭 개수:', DEFAULT_TABS.length);
+      
+      const savedTabs = await AsyncStorage.getItem('customTabs');
+      const savedActiveTab = await AsyncStorage.getItem('activeTab');
+      
+      console.log(' 저장된 탭:', savedTabs);
+      console.log('📦 저장된 활성 탭:', savedActiveTab);
+      
       if (savedTabs) {
         const parsedTabs = JSON.parse(savedTabs);
-        // 컴포넌트 참조를 다시 연결
-        const restoredTabs = parsedTabs.map((tab: any) => {
-          const defaultTab = DEFAULT_TABS.find(dt => dt.id === tab.id);
-          return {
-            ...tab,
-            component: defaultTab?.component || DEFAULT_TABS[0].component
-          };
-        });
-        setTabs(restoredTabs);
+        console.log('✅ 파싱된 탭:', parsedTabs);
+        
+        // 파싱된 탭이 유효한지 확인하고, 유효하지 않으면 기본 탭 사용
+        if (Array.isArray(parsedTabs) && parsedTabs.length > 0) {
+          setTabs(parsedTabs);
+        } else {
+          console.log('⚠️ 저장된 탭이 유효하지 않음, 기본 탭 사용');
+          setTabs(DEFAULT_TABS);
+        }
+      } else {
+        console.log(' 기본 탭 사용');
+        setTabs(DEFAULT_TABS);
       }
-
+      
       if (savedActiveTab) {
+        console.log('✅ 활성 탭 설정:', savedActiveTab);
         setActiveTab(savedActiveTab);
+      } else {
+        console.log('📝 기본 활성 탭 사용: Alarm');
+        setActiveTab('Alarm');
       }
     } catch (error) {
-      console.error('탭 설정 로드 실패:', error);
+      console.error('❌ 탭 로드 실패:', error);
+      // 오류 시에도 기본값 사용
+      setTabs(DEFAULT_TABS);
+      setActiveTab('Alarm');
+    } finally {
+      setIsLoading(false);
+      isLoadedRef.current = true;
+      console.log('✅ 탭 로딩 완료');
     }
   };
 
-  const saveTabSettings = async () => {
+  const saveTabs = async (newTabs: TabConfig[]) => {
     try {
-      // 컴포넌트 참조를 제외하고 저장
-      const tabsToSave = tabs.map(tab => ({
-        id: tab.id,
-        title: tab.title,
-        icon: tab.icon,
-        badge: tab.badge,
-        isStack: tab.isStack
-      }));
-
-      await Promise.all([
-        AsyncStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabsToSave)),
-        AsyncStorage.setItem(ACTIVE_TAB_KEY, activeTab)
-      ]);
+      await AsyncStorage.setItem('customTabs', JSON.stringify(newTabs));
+      console.log('💾 탭 저장 완료');
     } catch (error) {
-      console.error('탭 설정 저장 실패:', error);
+      console.error('❌ 탭 저장 실패:', error);
     }
   };
 
-  const addTab = (tab: TabConfig) => {
-    setTabs(prev => [...prev, tab]);
+  const addTab = (newTab: TabConfig) => {
+    setTabs(prevTabs => {
+      const updatedTabs = [...prevTabs, newTab];
+      saveTabs(updatedTabs);
+      return updatedTabs;
+    });
   };
 
   const removeTab = (tabId: string) => {
-    setTabs(prev => {
-      const newTabs = prev.filter(tab => tab.id !== tabId);
-      // 제거된 탭이 활성 탭이었다면 첫 번째 탭으로 변경
-      if (activeTab === tabId && newTabs.length > 0) {
-        setActiveTab(newTabs[0].id);
+    setTabs(prevTabs => {
+      const updatedTabs = prevTabs.filter(tab => tab.id !== tabId);
+      saveTabs(updatedTabs);
+      
+      if (activeTab === tabId && updatedTabs.length > 0) {
+        setActiveTab(updatedTabs[0].id);
       }
-      return newTabs;
+      
+      return updatedTabs;
     });
   };
 
   const reorderTabs = (fromIndex: number, toIndex: number) => {
-    setTabs(prev => {
-      const newTabs = [...prev];
+    setTabs(prevTabs => {
+      const newTabs = [...prevTabs];
       const [movedTab] = newTabs.splice(fromIndex, 1);
       newTabs.splice(toIndex, 0, movedTab);
+      saveTabs(newTabs);
       return newTabs;
     });
   };
 
-  const resetTabs = () => {
+  const resetToDefault = () => {
     setTabs(DEFAULT_TABS);
     setActiveTab('Alarm');
+    saveTabs(DEFAULT_TABS);
   };
 
-  const updateTab = (tabId: string, updates: Partial<TabConfig>) => {
-    setTabs(prev => prev.map(tab => 
-      tab.id === tabId ? { ...tab, ...updates } : tab
-    ));
+  const handleSetActiveTab = (tabId: string) => {
+    console.log('🔄 활성 탭 변경:', tabId);
+    setActiveTab(tabId);
+    AsyncStorage.setItem('activeTab', tabId).catch(error => {
+      console.error('❌ 활성 탭 저장 실패:', error);
+    });
   };
+
+  // 로딩 중이거나 탭이 비어있으면 기본값 제공
+  const safeTabs = isLoading || !tabs || tabs.length === 0 ? DEFAULT_TABS : tabs;
+  const safeActiveTab = activeTab || 'Alarm';
 
   return (
-    <TabContext.Provider value={{
-      tabs,
-      activeTab,
-      setActiveTab,
-      addTab,
-      removeTab,
-      reorderTabs,
-      resetTabs,
-      updateTab,
-      isTabManagerVisible,
-      setTabManagerVisible,
-    }}>
+    <TabContext.Provider
+      value={{
+        tabs: safeTabs,
+        activeTab: safeActiveTab,
+        setActiveTab: handleSetActiveTab,
+        addTab,
+        removeTab,
+        reorderTabs,
+        resetToDefault,
+        isLoading,
+      }}
+    >
       {children}
     </TabContext.Provider>
   );
-};
-
-export const useTab = () => {
-  const context = useContext(TabContext);
-  if (context === undefined) {
-    throw new Error('useTab must be used within a TabProvider');
-  }
-  return context;
 }; 

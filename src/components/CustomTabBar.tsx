@@ -23,6 +23,7 @@ interface CustomTabBarProps {
   tabs: TabConfig[];
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  onSettingsPress?: () => void;
   scrollable?: boolean;
 }
 
@@ -30,247 +31,154 @@ const CustomTabBar: React.FC<CustomTabBarProps> = ({
   tabs,
   activeTab,
   onTabChange,
-  scrollable = true,
+  onSettingsPress,
+  scrollable = false,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const { width: screenWidth } = Dimensions.get('window');
-  const animatedValues = useRef(
-    tabs.reduce((acc, tab) => {
-      acc[tab.id] = new Animated.Value(tab.id === activeTab ? 1 : 0);
-      return acc;
-    }, {} as Record<string, Animated.Value>)
-  ).current;
   
-  // 탭이 화면에 맞는지 확인
-  const tabWidth = screenWidth / tabs.length;
-  const shouldScroll = scrollable && (tabWidth < 80 || tabs.length > 5);
+  // 4개씩 보이도록 탭 너비 조정
+  const tabWidth = Math.max(80, Math.min(100, screenWidth / 4));
 
-  useEffect(() => {
-    // 탭 변경 애니메이션
-    Object.keys(animatedValues).forEach(tabId => {
-      Animated.timing(animatedValues[tabId], {
-        toValue: tabId === activeTab ? 1 : 0,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
-    });
-
-    if (shouldScroll && scrollViewRef.current) {
-      // 활성 탭을 중앙으로 스크롤
-      const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
-      if (activeIndex !== -1) {
-        const scrollTo = Math.max(0, (activeIndex * 100) - (screenWidth / 2) + 50);
-        scrollViewRef.current.scrollTo({
-          x: scrollTo,
-          animated: true,
-        });
-      }
-    }
-  }, [activeTab, shouldScroll, screenWidth]);
-
-  const renderTab = (tab: TabConfig, index: number) => {
-    const isActive = tab.id === activeTab;
-    const animatedValue = animatedValues[tab.id] || new Animated.Value(0);
+  const renderTabItem = (tab: TabConfig, index: number) => {
+    const isActive = activeTab === tab.id;
     
     return (
       <TouchableOpacity
         key={tab.id}
         style={[
           styles.tabItem,
-          shouldScroll ? styles.scrollableTab : { flex: 1 },
+          { width: tabWidth },
+          isActive && styles.activeTabItem,
         ]}
         onPress={() => onTabChange(tab.id)}
         activeOpacity={0.7}
       >
-        <Animated.View style={[
-          styles.tabContent,
-          {
-            backgroundColor: animatedValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['transparent', 'rgba(255, 127, 80, 0.1)']
-            }),
-            borderRadius: 12,
-            transform: [{
-              scale: animatedValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 1.05]
-              })
-            }]
-          }
-        ]}>
-          <Text style={[
-            styles.tabIcon,
-            isActive ? styles.activeTabIcon : styles.inactiveTabIcon
-          ]}>
-            {tab.icon}
-          </Text>
-          <Text style={[
-            styles.tabLabel,
-            isActive ? styles.activeTabLabel : styles.inactiveTabLabel
-          ]}>
-            {tab.title}
-          </Text>
-          {tab.badge && tab.badge > 0 && (
-            <Animated.View style={[
-              styles.badge,
-              {
-                transform: [{
-                  scale: animatedValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 1.2]
-                  })
-                }]
-              }
-            ]}>
-              <Text style={styles.badgeText}>
-                {tab.badge > 99 ? '99+' : tab.badge}
-              </Text>
-            </Animated.View>
-          )}
-        </Animated.View>
-        {isActive && (
-          <Animated.View style={[
-            styles.activeIndicator,
-            {
-              opacity: animatedValue,
-              transform: [{
-                scaleX: animatedValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1]
-                })
-              }]
-            }
-          ]} />
+        <Text style={[styles.tabIcon, isActive && styles.activeTabIcon]}>
+          {tab.icon}
+        </Text>
+        <Text style={[styles.tabTitle, isActive && styles.activeTabTitle]}>
+          {tab.title}
+        </Text>
+        {tab.badge && tab.badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {tab.badge > 99 ? '99+' : tab.badge}
+            </Text>
+          </View>
         )}
       </TouchableOpacity>
     );
   };
 
-  if (shouldScroll) {
-    return (
-      <View style={styles.container}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {tabs.map(renderTab)}
-        </ScrollView>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.fixedTabContainer}>
-        {tabs.map(renderTab)}
-      </View>
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={true} // 항상 스크롤 가능하도록
+        bounces={false}
+        decelerationRate="fast"
+      >
+        {/* 일반 탭들 */}
+        {tabs.map((tab, index) => renderTabItem(tab, index))}
+        
+        {/* 고정된 설정 버튼 (맨 오른쪽) */}
+        <TouchableOpacity
+          style={[styles.settingsButton, { width: tabWidth }]}
+          onPress={onSettingsPress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Text style={styles.settingsText}>설정</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#4A2C1A',
-    borderTopColor: '#8B6341',
+    backgroundColor: '#1a1a1a',
     borderTopWidth: 1,
-    height: Platform.OS === 'android' ? 85 : 95,
-    paddingBottom: Platform.OS === 'android' ? 20 : 30,
-    paddingTop: 8,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  scrollView: {
-    flex: 1,
+    borderTopColor: '#333',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    // 높이를 더 크게 조정
+    maxHeight: 80,  // 70 → 80
+    minHeight: 65,  // 55 → 65
   },
   scrollContent: {
-    paddingHorizontal: 8,
-  },
-  fixedTabContainer: {
-    flex: 1,
     flexDirection: 'row',
-    paddingHorizontal: 2,
+    alignItems: 'center',
+    paddingHorizontal: 8, // 패딩 조정
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    position: 'relative',
+    paddingVertical: 10, // 8 → 10
+    paddingHorizontal: 6, // 4 → 6
+    minHeight: 60, // 50 → 60
+    maxHeight: 80, // 70 → 80
   },
-  scrollableTab: {
-    minWidth: 80,
-    width: 100,
-  },
-  tabContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+  activeTabItem: {
+    backgroundColor: '#333',
+    borderRadius: 10, // 8 → 10
   },
   tabIcon: {
-    fontSize: 20,
-    marginBottom: 2,
+    fontSize: 22, // 16 → 22 (훨씬 크게)
+    marginBottom: 4, // 2 → 4
   },
   activeTabIcon: {
-    color: '#FF7F50',
+    color: '#fff',
   },
-  inactiveTabIcon: {
-    color: '#A67C61',
-  },
-  tabLabel: {
-    fontSize: 9,
-    fontWeight: '500',
+  tabTitle: {
+    fontSize: 11, // 8 → 11 (더 크게)
+    color: '#888',
     textAlign: 'center',
+    fontWeight: '500',
   },
-  activeTabLabel: {
-    color: '#FF7F50',
+  activeTabTitle: {
+    color: '#fff',
     fontWeight: '600',
-  },
-  inactiveTabLabel: {
-    color: '#A67C61',
   },
   badge: {
     position: 'absolute',
-    top: -2,
-    right: -6,
-    backgroundColor: '#FF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    top: 2,        // 1 → 2
+    right: 2,      // 1 → 2
+    backgroundColor: '#ff4444',
+    borderRadius: 8, // 6 → 8
+    minWidth: 16,   // 12 → 16
+    height: 16,     // 12 → 16
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3,
   },
   badgeText: {
-    color: 'white',
-    fontSize: 11,
+    color: '#fff',
+    fontSize: 8,    // 6 → 8
     fontWeight: 'bold',
   },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -8,
-    left: '50%',
-    marginLeft: -8,
-    width: 16,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#FF7F50',
+  settingsButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10, // 8 → 10
+    paddingHorizontal: 6, // 4 → 6
+    minHeight: 60, // 50 → 60
+    maxHeight: 80, // 70 → 80
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10, // 8 → 10
+    marginLeft: 4,
+  },
+  settingsIcon: {
+    fontSize: 22, // 18 → 22
+    marginBottom: 4, // 2 → 4
+  },
+  settingsText: {
+    fontSize: 11, // 9 → 11
+    color: '#888',
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 
