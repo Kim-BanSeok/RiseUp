@@ -1,64 +1,217 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Modal, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Modal,
   ScrollView,
-  Alert,
-  Image
+  Dimensions,
 } from 'react-native';
-import { getAllSounds, SoundOption, playSound, stopSound, getSoundById, pickSoundFromDevice, addCustomSound } from '../utils/sounds';
+import { getAllSounds, SoundOption, playSound, stopSound, getSoundById } from '../utils/sounds';
+import { 
+  addCustomMusicFile,
+  getDefaultMusicList,
+  loadSelectedMusicFiles, 
+  saveSelectedMusicFiles,
+  removeMusicFile,
+  playMusicFile, 
+  stopMusicFile, 
+  initializeDefaultMusic,
+  MusicFile 
+} from '../utils/musicLibrary';
+import CustomAlert from './CustomAlert';
 
 interface SoundSelectorProps {
   selectedSoundId: string;
   onSoundChange: (soundId: string) => void;
 }
 
-const SoundSelector: React.FC<SoundSelectorProps> = ({ selectedSoundId, onSoundChange }) => {
-  const [modalVisible, setModalVisible] = useState(false);
-  const [playingSound, setPlayingSound] = useState<string | null>(null);
+const SoundSelector: React.FC<SoundSelectorProps> = ({
+  selectedSoundId,
+  onSoundChange,
+}) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // CustomAlert 상태
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: Array<{
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: []
+  });
+
+  const showCustomAlert = (
+    title: string,
+    message: string,
+    buttons: Array<{
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }>
+  ) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons: buttons.map(button => ({
+        ...button,
+        onPress: () => {
+          setAlertConfig(prev => ({ ...prev, visible: false }));
+          if (button.onPress) {
+            button.onPress();
+          }
+        }
+      }))
+    });
+  };
 
   const selectedSound = getSoundById(selectedSoundId);
   const allSounds = getAllSounds();
 
-  const handleSoundSelect = (sound: SoundOption) => {
-    onSoundChange(sound.id);
+  // 컴포넌트 마운트 시 음악 파일 로드
+  useEffect(() => {
+    initializeMusic();
+  }, []);
+
+  const initializeMusic = async () => {
+    await initializeDefaultMusic();
+    await loadMusicFiles();
+  };
+
+  const loadMusicFiles = async () => {
+    const files = await loadSelectedMusicFiles();
+    setMusicFiles(files);
+  };
+
+  const handleSoundSelect = (sound: SoundOption | MusicFile) => {
+    const soundId = 'uri' in sound ? `music_${sound.id}` : sound.id;
+    onSoundChange(soundId);
     setModalVisible(false);
     stopCurrentSound();
   };
 
-  const playPreview = (soundId: string) => {
-    if (playingSound === soundId) {
+  const playPreview = (item: SoundOption | MusicFile) => {
+    const itemId = 'uri' in item ? `music_${item.id}` : item.id;
+    
+    if (playingSound === itemId) {
       stopCurrentSound();
     } else {
       stopCurrentSound();
-      setPlayingSound(soundId);
-      playSound(soundId);
+      setPlayingSound(itemId);
       
-      // 5초 후 자동 정지
+      if ('uri' in item) {
+        // 음악 파일 재생
+        playMusicFile(item.uri);
+      } else {
+        // 기본 사운드 재생
+        playSound(item.id);
+      }
+      
+      // 10초 후 자동 정지
       setTimeout(() => {
-        if (playingSound === soundId) {
+        if (playingSound === itemId) {
           stopCurrentSound();
         }
-      }, 5000);
+      }, 10000);
     }
   };
 
   const stopCurrentSound = () => {
     if (playingSound) {
-      stopSound();
+      if (playingSound.startsWith('music_')) {
+        stopMusicFile();
+      } else {
+        stopSound();
+      }
       setPlayingSound(null);
     }
   };
 
-  const handleAddCustomSound = async () => {
-    const customSound = await pickSoundFromDevice();
-    if (customSound) {
-      addCustomSound(customSound);
-      handleSoundSelect(customSound);
+  const handleAddMusicFile = async () => {
+    setIsLoading(true);
+    try {
+      const musicFile = await addCustomMusicFile();
+      if (musicFile) {
+        const updatedFiles = [...musicFiles, musicFile];
+        setMusicFiles(updatedFiles);
+        await saveSelectedMusicFiles(updatedFiles);
+        
+        showCustomAlert(
+          '🎵 음악 추가 완료',
+          `"${musicFile.name}" 파일이 추가되었습니다.`,
+          [{ text: '확인', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      console.error('음악 파일 추가 실패:', error);
+      showCustomAlert('⚠️ 오류', '음악 파일 추가 중 오류가 발생했습니다.', [
+        { text: '확인', style: 'default' }
+      ]);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleRemoveMusicFile = async (fileId: string) => {
+    const defaultMusicIds = getDefaultMusicList().map(music => music.id);
+    if (defaultMusicIds.includes(fileId)) {
+      showCustomAlert('ℹ️ 알림', '기본 제공 음악은 삭제할 수 없습니다.', [
+        { text: '확인', style: 'default' }
+      ]);
+      return;
+    }
+
+    showCustomAlert(
+      '🗑️ 음악 파일 삭제',
+      '이 음악 파일을 목록에서 제거하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            await removeMusicFile(fileId);
+            const updatedFiles = musicFiles.filter(file => file.id !== fileId);
+            setMusicFiles(updatedFiles);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleResetToDefault = async () => {
+    showCustomAlert(
+      '🔄 기본 음악으로 초기화',
+      '음악 목록을 기본 제공 음악으로 초기화하시겠습니까?\n추가한 사용자 정의 음악은 모두 삭제됩니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '초기화',
+          style: 'destructive',
+          onPress: async () => {
+            const defaultMusic = getDefaultMusicList();
+            setMusicFiles(defaultMusic);
+            await saveSelectedMusicFiles(defaultMusic);
+            showCustomAlert('✅ 완료', '기본 음악 목록으로 초기화되었습니다.', [
+              { text: '확인', style: 'default' }
+            ]);
+          }
+        }
+      ]
+    );
   };
 
   const renderSoundItem = (sound: SoundOption) => (
@@ -95,7 +248,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({ selectedSoundId, onSoundC
           styles.playButton,
           playingSound === sound.id && styles.playingButton
         ]}
-        onPress={() => playPreview(sound.id)}
+        onPress={() => playPreview(sound)}
       >
         <Text style={[
           styles.playButtonText,
@@ -107,97 +260,197 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({ selectedSoundId, onSoundC
     </TouchableOpacity>
   );
 
+  const renderMusicItem = (music: MusicFile) => {
+    const musicId = `music_${music.id}`;
+    const isSelected = selectedSoundId === musicId;
+    const isDefaultMusic = getDefaultMusicList().some(defaultMusic => defaultMusic.id === music.id);
+    
+    return (
+      <TouchableOpacity
+        key={music.id}
+        style={[
+          styles.soundItem,
+          isSelected && styles.selectedSoundItem
+        ]}
+        onPress={() => handleSoundSelect(music)}
+      >
+        <View style={styles.soundInfo}>
+          <Text style={[
+            styles.soundName,
+            isSelected && styles.selectedText
+          ]}>
+            {music.name}
+          </Text>
+          <Text style={[
+            styles.soundDescription,
+            isSelected && styles.selectedText
+          ]}>
+            {isDefaultMusic ? '기본 제공' : '사용자 추가'} • {(music.size / 1024 / 1024).toFixed(1)}MB
+          </Text>
+          <Text style={styles.soundType}>
+            내 음악
+          </Text>
+        </View>
+        
+        <View style={styles.musicControls}>
+          <TouchableOpacity
+            style={[
+              styles.playButton,
+              playingSound === musicId && styles.playingButton
+            ]}
+            onPress={() => playPreview(music)}
+          >
+            <Text style={[
+              styles.playButtonText,
+              playingSound === musicId && styles.playingButtonText
+            ]}>
+              {playingSound === musicId ? '⏹' : '▶️'}
+            </Text>
+          </TouchableOpacity>
+          
+          {!isDefaultMusic && (
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => handleRemoveMusicFile(music.id)}
+            >
+              <Text style={styles.removeButtonText}>×</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const getSectionData = () => {
     const builtin = allSounds.filter(s => s.type === 'builtin');
     const system = allSounds.filter(s => s.type === 'system');
-    const custom = allSounds.filter(s => s.type === 'custom');
     
-    return { builtin, system, custom };
+    return { builtin, system };
   };
 
-  const { builtin, system, custom } = getSectionData();
+  const { builtin, system } = getSectionData();
+
+  // 선택된 항목 정보 가져오기
+  const getSelectedItemInfo = () => {
+    if (selectedSoundId.startsWith('music_')) {
+      const musicId = selectedSoundId.replace('music_', '');
+      const music = musicFiles.find(m => m.id === musicId);
+      return {
+        name: music?.name || '선택된 음악',
+        description: '내 음악'
+      };
+    } else {
+      return {
+        name: selectedSound?.name || '선택된 사운드',
+        description: selectedSound?.description || '사운드를 선택해주세요'
+      };
+    }
+  };
+
+  const selectedInfo = getSelectedItemInfo();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>소리</Text>
-      
-      <TouchableOpacity
-        style={styles.selector}
-        onPress={() => setModalVisible(true)}
-      >
-        <View style={styles.selectorContent}>
-          <Text style={styles.selectedSoundName}>음악</Text>
-          <Text style={styles.selectedSoundDesc}>향후을 찾지 못함</Text>
-        </View>
-        <View style={styles.selectorIcon}>
-          {/* 헤드폰 아이콘을 나타내는 이미지나 텍스트 */}
-          <View style={styles.headphonesIcon}>
-            <View style={styles.headband} />
-            <View style={styles.leftEarpiece} />
-            <View style={styles.rightEarpiece} />
-            <View style={styles.phone} />
+    <>
+      <View style={styles.container}>
+        <Text style={styles.title}>소리</Text>
+        
+        <TouchableOpacity
+          style={styles.selector}
+          onPress={() => setModalVisible(true)}
+        >
+          <View style={styles.selectorContent}>
+            <Text style={styles.selectedSoundName}>
+              {selectedInfo.name}
+            </Text>
+            <Text style={styles.selectedSoundDesc}>
+              {selectedInfo.description}
+            </Text>
           </View>
-        </View>
-      </TouchableOpacity>
-
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => {
-          setModalVisible(false);
-          stopCurrentSound();
-        }}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setModalVisible(false);
-                stopCurrentSound();
-              }}
-            >
-              <Text style={styles.closeButtonText}>×</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>미리 보기 저장</Text>
-            <TouchableOpacity style={styles.menuButton}>
-              <Text style={styles.menuButtonText}>⋮</Text>
-            </TouchableOpacity>
+          <View style={styles.selectorIcon}>
+            <View style={styles.headphonesIcon}>
+              <View style={styles.headband} />
+              <View style={styles.leftEarpiece} />
+              <View style={styles.rightEarpiece} />
+              <View style={styles.phone} />
+            </View>
           </View>
-          
-          <ScrollView style={styles.soundsList}>
-            {/* 기본 사운드 */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>기본 사운드</Text>
-              {builtin.map(renderSoundItem)}
-            </View>
+        </TouchableOpacity>
 
-            {/* 시스템 사운드 */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>시스템 사운드</Text>
-              {system.map(renderSoundItem)}
+        <Modal
+          visible={isModalVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => {
+            setModalVisible(false);
+            stopCurrentSound();
+          }}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  setModalVisible(false);
+                  stopCurrentSound();
+                }}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>알람음 선택</Text>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={handleResetToDefault}
+              >
+                <Text style={styles.resetButtonText}>🔄</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* 사용자 지정 사운드 */}
-            {custom.length > 0 && (
+            
+            <ScrollView style={styles.soundsList}>
+              {/* 내 음악 */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>사용자 지정</Text>
-                {custom.map(renderSoundItem)}
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>내 음악 ({musicFiles.length})</Text>
+                  <TouchableOpacity
+                    style={[styles.addButton, isLoading && styles.addButtonDisabled]}
+                    onPress={handleAddMusicFile}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={styles.addButtonText}>+ 추가</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                
+                {musicFiles.map(renderMusicItem)}
               </View>
-            )}
 
-            {/* 파일 추가 버튼 */}
-            <TouchableOpacity
-              style={styles.addFileButton}
-              onPress={handleAddCustomSound}
-            >
-              <Text style={styles.addFileText}>+ 파일에서 사운드 추가</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
-    </View>
+              {/* 기본 사운드 */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>기본 사운드</Text>
+                {builtin.map(renderSoundItem)}
+              </View>
+
+              {/* 시스템 사운드 */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>시스템 사운드</Text>
+                {system.map(renderSoundItem)}
+              </View>
+            </ScrollView>
+          </View>
+        </Modal>
+      </View>
+
+      {/* CustomAlert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onRequestClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+      />
+    </>
   );
 };
 
@@ -209,14 +462,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#FFAB7A', // 따뜻한 오렌지
+    color: '#FFAB7A',
   },
   selector: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#8B4513', // 브라운 배경
+    backgroundColor: '#8B4513',
     borderRadius: 15,
     borderWidth: 1,
     borderColor: '#A0522D',
@@ -227,7 +480,7 @@ const styles = StyleSheet.create({
   selectedSoundName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFD4B3', // 밝은 피치
+    color: '#FFD4B3',
   },
   selectedSoundDesc: {
     fontSize: 12,
@@ -280,7 +533,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#2D1B14', // 어두운 브라운
+    backgroundColor: '#2D1B14',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -306,16 +559,8 @@ const styles = StyleSheet.create({
     color: '#FFD4B3',
     fontWeight: 'bold',
   },
-  menuButton: {
+  placeholder: {
     width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuButtonText: {
-    fontSize: 20,
-    color: '#FFD4B3',
-    fontWeight: 'bold',
   },
   soundsList: {
     flex: 1,
@@ -324,11 +569,32 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 30,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFAB7A',
-    marginBottom: 15,
+  },
+  addButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#FF7F50',
+    borderRadius: 15,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  addButtonDisabled: {
+    opacity: 0.5,
+  },
+  addButtonText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   soundItem: {
     flexDirection: 'row',
@@ -363,6 +629,10 @@ const styles = StyleSheet.create({
   selectedText: {
     color: '#FF7F50',
   },
+  musicControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   playButton: {
     width: 40,
     height: 40,
@@ -370,6 +640,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B4E37',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 10,
   },
   playingButton: {
     backgroundColor: '#FF7F50',
@@ -380,20 +651,27 @@ const styles = StyleSheet.create({
   playingButtonText: {
     color: '#fff',
   },
-  addFileButton: {
-    padding: 20,
-    backgroundColor: '#4A2C1A',
-    borderRadius: 10,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#8B6341',
+  removeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#CD5C5C',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
   },
-  addFileText: {
+  removeButtonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  resetButton: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resetButtonText: {
     fontSize: 16,
-    color: '#FFAB7A',
-    fontWeight: '500',
   },
 });
 

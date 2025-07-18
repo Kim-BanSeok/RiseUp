@@ -1,5 +1,6 @@
 import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import PersistentAlarmManager from './PersistentAlarmManager';
 
 interface ScheduledNotification {
   id: string;
@@ -7,11 +8,13 @@ interface ScheduledNotification {
   title: string;
   message: string;
   repeatDays?: number[];
+  soundId?: string;
 }
 
 class NotificationManager {
   private static instance: NotificationManager;
   private scheduledNotifications: Map<string, ScheduledNotification> = new Map();
+  private persistentAlarmManager = PersistentAlarmManager.getInstance();
 
   static getInstance(): NotificationManager {
     if (!NotificationManager.instance) {
@@ -20,22 +23,8 @@ class NotificationManager {
     return NotificationManager.instance;
   }
 
-  // 알림 권한 요청
-  async requestPermissions(): Promise<boolean> {
-    if (Platform.OS === 'android') {
-      // Android 13+ 에서 알림 권한 체크
-      return new Promise((resolve) => {
-        Alert.alert(
-          '알림 권한',
-          'RiseUp에서 알람을 울리려면 알림 권한이 필요합니다.',
-          [
-            { text: '취소', onPress: () => resolve(false) },
-            { text: '확인', onPress: () => resolve(true) },
-          ]
-        );
-      });
-    }
-    return true;
+  constructor() {
+    this.loadScheduledNotifications();
   }
 
   // 알람 스케줄링
@@ -46,6 +35,7 @@ class NotificationManager {
       title: notification.title,
       message: notification.message,
       repeatDays: notification.repeatDays,
+      soundId: notification.soundId,
     });
 
     this.scheduledNotifications.set(notification.id, notification);
@@ -60,6 +50,9 @@ class NotificationManager {
     console.log('❌ 알람 취소:', id);
     this.scheduledNotifications.delete(id);
     await this.saveScheduledNotifications();
+    
+    // 활성 알람도 정지
+    this.persistentAlarmManager.stopAlarm(id);
   }
 
   // 모든 알람 취소
@@ -67,6 +60,9 @@ class NotificationManager {
     console.log('🗑️ 모든 알람 취소');
     this.scheduledNotifications.clear();
     await this.saveScheduledNotifications();
+    
+    // 모든 활성 알람 정지
+    this.persistentAlarmManager.stopAllAlarms();
   }
 
   // 백그라운드 체크 설정
@@ -92,54 +88,20 @@ class NotificationManager {
     }
   }
 
-  // 알림 발생
+  // 알림 발생 - 지속적인 알람으로 변경
   private triggerNotification(notification: ScheduledNotification) {
-    console.log('🔔 알람 울림!', notification.title);
+    console.log('🔔 지속 알람 트리거!', notification.title);
     
-    Alert.alert(
-      `🌅 ${notification.title}`,
+    // 지속적인 알람 시작
+    this.persistentAlarmManager.triggerPersistentAlarm(
+      notification.id,
+      notification.title,
       notification.message,
-      [
-        {
-          text: '다시 알림 (5분)',
-          onPress: () => this.snoozeNotification(notification.id, 5),
-        },
-        {
-          text: '알람 끄기',
-          onPress: () => this.dismissNotification(notification.id),
-        },
-      ],
-      { cancelable: false }
+      notification.soundId || 'default'
     );
 
-    // 진동 효과 (실제 구현 시 Vibration API 사용)
-    console.log('📳 진동 효과');
-  }
-
-  // 다시 알림 (스누즈)
-  private async snoozeNotification(id: string, minutes: number) {
-    const notification = this.scheduledNotifications.get(id);
-    if (notification) {
-      const snoozeTime = new Date();
-      snoozeTime.setMinutes(snoozeTime.getMinutes() + minutes);
-      
-      const snoozeNotification = {
-        ...notification,
-        id: `${id}_snooze_${Date.now()}`,
-        time: snoozeTime,
-      };
-
-      await this.scheduleNotification(snoozeNotification);
-      console.log(`😴 ${minutes}분 후 다시 알림 설정`);
-    }
-  }
-
-  // 알림 끄기
-  private dismissNotification(id: string) {
-    console.log('✅ 알람 해제:', id);
     // 반복 알람이면 다음 일정으로 재설정
-    const notification = this.scheduledNotifications.get(id);
-    if (notification && notification.repeatDays && notification.repeatDays.length > 0) {
+    if (notification.repeatDays && notification.repeatDays.length > 0) {
       this.scheduleNextRepeat(notification);
     }
   }
@@ -167,6 +129,21 @@ class NotificationManager {
     };
 
     await this.scheduleNotification(nextNotification);
+  }
+
+  // 수동으로 알람 정지
+  stopAlarm(id: string) {
+    this.persistentAlarmManager.stopAlarm(id);
+  }
+
+  // 모든 활성 알람 정지
+  stopAllActiveAlarms() {
+    this.persistentAlarmManager.stopAllAlarms();
+  }
+
+  // 활성 알람 개수 조회
+  getActiveAlarmCount(): number {
+    return this.persistentAlarmManager.getActiveAlarmCount();
   }
 
   // 예약된 알림 저장

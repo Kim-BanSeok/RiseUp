@@ -6,15 +6,17 @@ export const scheduleAlarm = async (
   id: string, 
   time: Date, 
   message: string, 
-  repeatDays?: number[]
+  repeatDays?: number[],
+  soundId?: string
 ): Promise<boolean> => {
   try {
     const alarmInfo = {
-    id,
+      id,
       time,
       title: 'RiseUp 알람',
-    message,
+      message,
       repeatDays,
+      soundId: soundId || 'default',
     };
 
     if (repeatDays && repeatDays.length > 0) {
@@ -28,16 +30,11 @@ export const scheduleAlarm = async (
   }
 };
 
-export const cancelAlarm = async (id: string, repeatDays?: number[]): Promise<boolean> => {
+export const cancelAlarm = async (id: string, repeatDays?: number[]): Promise<void> => {
   try {
-    if (repeatDays && repeatDays.length > 0) {
-      return await simpleAlarmManager.cancelRepeatingAlarm(id, repeatDays);
-    } else {
-      return await simpleAlarmManager.cancelAlarm(id);
-    }
+    await simpleAlarmManager.cancelAlarm(id, repeatDays);
   } catch (error) {
     console.error('알람 취소 실패:', error);
-    return false;
   }
 };
 

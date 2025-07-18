@@ -1,5 +1,6 @@
-import { NativeModules, Platform, Alert } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import GlobalAlert from '../utils/GlobalAlert';
 
 const { AlarmModule } = NativeModules;
 
@@ -11,7 +12,7 @@ interface AlarmInfo {
   repeatDays?: number[];
 }
 
-class SimpleAlarmManager {
+export class SimpleAlarmManager {
   private static instance: SimpleAlarmManager;
   private hasRequestedPermission = false;
 
@@ -29,12 +30,13 @@ class SimpleAlarmManager {
     }
 
     return new Promise((resolve) => {
-      Alert.alert(
-        'RiseUp 알림 권한',
+      const globalAlert = GlobalAlert.getInstance();
+      globalAlert.alert(
+        '🔔 RiseUp 알림 권한',
         '알람이 정시에 울리려면 알림 권한이 필요합니다.',
         [
-          { text: '취소', onPress: () => resolve(false) },
-          { text: '허용', onPress: () => resolve(true) },
+          { text: '취소', style: 'cancel', onPress: () => resolve(false) },
+          { text: '허용', style: 'default', onPress: () => resolve(true) },
         ],
         { cancelable: false }
       );

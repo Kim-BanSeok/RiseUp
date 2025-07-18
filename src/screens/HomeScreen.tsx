@@ -15,8 +15,10 @@ import { useAlarm, Alarm } from '../context/AlarmContext';
 import { getSoundById } from '../utils/sounds';
 import NotificationManager from '../notifications/NotificationManager';
 import AlarmTest from '../components/AlarmTest';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HomeScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { alarms, deleteAlarm, toggleAlarm, isLoading } = useAlarm();
   const notificationManager = NotificationManager.getInstance();
 
@@ -150,7 +152,7 @@ const HomeScreen = ({ navigation }: any) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
       <Text style={styles.title}>🌅 RiseUp</Text>
       
       {/* 개발용 테스트 버튼 */}
@@ -169,13 +171,16 @@ const HomeScreen = ({ navigation }: any) => {
           keyExtractor={(item) => item.id}
           style={styles.alarmList}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
       
-      <Button 
-        title="+ 알람 추가" 
-        onPress={() => navigation.navigate('AddAlarm')} 
-      />
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => navigation.navigate('AddAlarm')}
+      >
+        <Text style={styles.addButtonText}>+ 알람 추가</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -289,6 +294,25 @@ const styles = StyleSheet.create({
     color: '#FFF8DC', // 크림 화이트
     fontSize: 12,
     fontWeight: '500',
+  },
+  addButton: {
+    backgroundColor: '#FF7F50',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  addButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

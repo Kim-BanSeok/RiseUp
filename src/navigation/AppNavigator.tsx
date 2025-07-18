@@ -1,24 +1,12 @@
 // src/navigation/AppNavigator.tsx
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from '../screens/HomeScreen';
-import AddAlarmScreen from '../screens/AddAlarmScreen';
-
-export type RootStackParamList = {
-  Home: undefined;
-  AddAlarm: undefined;
-};
-
-const Stack = createStackNavigator<RootStackParamList>();
+import TabNavigator from './TabNavigator';
 
 const AppNavigator = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="AddAlarm" component={AddAlarmScreen} />
-      </Stack.Navigator>
+      <TabNavigator />
     </NavigationContainer>
   );
 };

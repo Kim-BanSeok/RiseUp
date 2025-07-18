@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export interface SoundOption {
   id: string;
   name: string;
@@ -70,6 +72,10 @@ export const SOUND_OPTIONS: SoundOption[] = [
 // 사용자 정의 사운드 목록 (동적으로 추가됨)
 let customSounds: SoundOption[] = [];
 
+// 현재 재생 중인 사운드 관리
+let currentSoundId: string | null = null;
+let soundTimer: NodeJS.Timeout | null = null;
+
 export const addCustomSound = (sound: SoundOption) => {
   customSounds.push(sound);
 };
@@ -83,15 +89,57 @@ export const getSoundById = (id: string): SoundOption => {
   return allSounds.find(sound => sound.id === id) || SOUND_OPTIONS[0];
 };
 
-// 사운드 재생 함수
+// 사운드 재생 함수 (개선된 버전)
 export const playSound = (soundId: string) => {
-  console.log(`Playing sound: ${soundId}`);
-  // TODO: 실제 사운드 재생 구현
+  console.log(`🔊 재생 시작: ${soundId}`);
+  
+  // 기존 사운드 정지
+  stopSound();
+  
+  currentSoundId = soundId;
+  const sound = getSoundById(soundId);
+  
+  if (Platform.OS === 'android') {
+    // Android에서는 네이티브 사운드 재생 (실제 구현 시 react-native-sound 사용)
+    console.log(`Android 사운드 재생: ${sound.filename}`);
+    
+    // 현재는 시뮬레이션 - 실제로는 다음과 같이 구현:
+    // const Sound = require('react-native-sound');
+    // const alarm = new Sound(sound.filename, Sound.MAIN_BUNDLE, (error) => {
+    //   if (error) {
+    //     console.log('사운드 로드 실패', error);
+    //     return;
+    //   }
+    //   alarm.setNumberOfLoops(-1); // 무한 반복
+    //   alarm.play();
+    // });
+  } else {
+    // iOS에서는 AVAudioPlayer 사용
+    console.log(`iOS 사운드 재생: ${sound.filename}`);
+  }
+  
+  // 개발용: 콘솔에 주기적으로 알림
+  soundTimer = setInterval(() => {
+    console.log(`🔔 알람음 재생 중... (${sound.name})`);
+  }, 5000);
 };
 
 export const stopSound = () => {
-  console.log('Stopping sound');
-  // TODO: 사운드 정지 구현
+  if (currentSoundId) {
+    console.log(`🔇 사운드 정지: ${currentSoundId}`);
+    currentSoundId = null;
+  }
+  
+  if (soundTimer) {
+    clearInterval(soundTimer);
+    soundTimer = null;
+  }
+  
+  // 실제 구현 시:
+  // if (currentSound) {
+  //   currentSound.stop();
+  //   currentSound.release();
+  // }
 };
 
 // 핸드폰에서 사운드 파일 선택

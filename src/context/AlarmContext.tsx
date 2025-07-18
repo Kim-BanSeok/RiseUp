@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { saveAlarmsToStorage, loadAlarmsFromStorage } from '../utils/storage';
 import { scheduleAlarm, cancelAlarm } from '../notifications/alarmManager';
 import { PermissionManager } from '../utils/permissions';
+import { Alert, Vibration, Platform, AppState } from 'react-native';
+import { playSound, stopSound } from '../utils/sounds';
 
 export interface Alarm {
   id: string;
@@ -74,12 +76,13 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
       soundId: soundId || 'default',
     };
 
-    // 알람 스케줄링
+    // 알람 스케줄링 (사운드 ID 포함)
     const success = await scheduleAlarm(
       newAlarm.id,
       newAlarm.time,
       newAlarm.label || '알람',
-      newAlarm.repeatDays
+      newAlarm.repeatDays,
+      newAlarm.soundId // 사운드 ID 추가
     );
 
     if (success) {
