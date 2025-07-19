@@ -57,4 +57,6 @@ class GlobalAlert {
 // 싱글톤 인스턴스를 export
 const globalAlertInstance = GlobalAlert.getInstance();
 
+// getInstance 메서드도 export
+export { GlobalAlert };
 export default globalAlertInstance;

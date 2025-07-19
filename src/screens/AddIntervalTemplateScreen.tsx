@@ -214,19 +214,17 @@ const AddIntervalTemplateScreen = ({ navigation }: any) => {
 
   return (
     <>
-      <View style={[styles.container, { paddingBottom: insets.bottom + 20 }]}>
-        {/* 헤더 */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>← 취소</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>템플릿 추가</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.saveButton}>저장</Text>
-          </TouchableOpacity>
-        </View>
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 120 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>⏳ 템플릿 추가</Text>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* 기본 정보 */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>기본 정보</Text>
@@ -344,8 +342,22 @@ const AddIntervalTemplateScreen = ({ navigation }: any) => {
               </View>
             </View>
           </View>
-        </ScrollView>
-      </View>
+
+          {/* 저장/취소 버튼 */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>✅ 템플릿 저장</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.cancelButtonText}>❌ 취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
 
       {/* CustomAlert */}
       <CustomAlert
@@ -362,58 +374,46 @@ const AddIntervalTemplateScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#2D1B14', // AddAlarmScreen과 동일한 배경색
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  backButton: {
-    color: '#A67C61',
-    fontSize: 16,
-  },
-  title: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  saveButton: {
-    color: '#FF7F50',
-    fontSize: 16,
-    fontWeight: '600',
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: 20,
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30,
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
   },
   section: {
-    marginTop: 24,
+    marginBottom: 25,
   },
   sectionTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#FFAB7A', // AddAlarmScreen과 동일한 색상
   },
   inputGroup: {
     marginBottom: 16,
   },
   label: {
-    color: '#A67C61',
+    color: '#FFAB7A', // AddAlarmScreen과 동일한 색상
     fontSize: 14,
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#2A2A2A',
-    color: 'white',
-    padding: 12,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    borderRadius: 12,
+    padding: 15,
     fontSize: 16,
+    backgroundColor: '#4A2C1A', // AddAlarmScreen과 동일한 색상
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
   },
   categoryContainer: {
     flexDirection: 'row',
@@ -424,10 +424,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#4A2C1A', // AddAlarmScreen과 동일한 색상
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#8B6341', // AddAlarmScreen과 동일한 색상
   },
   categoryButtonActive: {
     backgroundColor: '#FF7F50',
@@ -453,10 +453,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   addPhaseButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#4A2C1A', // AddAlarmScreen과 동일한 색상
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#8B6341', // AddAlarmScreen과 동일한 색상
   },
   addPhaseText: {
     color: '#FF7F50',
@@ -464,10 +466,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   phaseItem: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#4A2C1A', // AddAlarmScreen과 동일한 색상
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341', // AddAlarmScreen과 동일한 색상
   },
   phaseHeader: {
     flexDirection: 'row',
@@ -475,29 +479,31 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   phaseNumber: {
-    color: 'white',
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
     fontSize: 18,
     fontWeight: 'bold',
     width: 30,
   },
   phaseNameInput: {
     flex: 1,
-    backgroundColor: '#333',
-    color: 'white',
+    backgroundColor: '#2D1B14', // 더 어두운 배경
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
     padding: 8,
     borderRadius: 6,
     marginHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341', // AddAlarmScreen과 동일한 색상
   },
   removePhaseButton: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#FF4444',
+    backgroundColor: '#CD5C5C', // AddAlarmScreen과 동일한 색상
     justifyContent: 'center',
     alignItems: 'center',
   },
   removePhaseText: {
-    color: 'white',
+    color: '#FFF8DC', // AddAlarmScreen과 동일한 색상
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -509,12 +515,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   durationInput: {
-    backgroundColor: '#333',
-    color: 'white',
+    backgroundColor: '#2D1B14', // 더 어두운 배경
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
     padding: 8,
     borderRadius: 6,
     textAlign: 'center',
     fontFamily: 'monospace',
+    borderWidth: 1,
+    borderColor: '#8B6341', // AddAlarmScreen과 동일한 색상
   },
   colorContainer: {
     flex: 1,
@@ -534,19 +542,21 @@ const styles = StyleSheet.create({
     borderColor: 'white',
   },
   previewCard: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#4A2C1A', // AddAlarmScreen과 동일한 색상
+    borderRadius: 15,
+    padding: 20,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FF7F50', // AddAlarmScreen과 동일한 색상
   },
   previewTitle: {
-    color: 'white',
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   previewDescription: {
-    color: '#A67C61',
+    color: '#FFAB7A', // AddAlarmScreen과 동일한 색상
     fontSize: 14,
     marginBottom: 12,
   },
@@ -560,6 +570,38 @@ const styles = StyleSheet.create({
   previewPhase: {
     flex: 1,
     marginRight: 1,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    gap: 15,
+  },
+  saveButton: {
+    backgroundColor: '#228B22', // AddAlarmScreen과 동일한 색상
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#32CD32', // AddAlarmScreen과 동일한 색상
+  },
+  saveButtonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: '#8B4513', // AddAlarmScreen과 동일한 색상
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#A0522D', // AddAlarmScreen과 동일한 색상
+  },
+  cancelButtonText: {
+    color: '#FFD4B3', // AddAlarmScreen과 동일한 색상
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

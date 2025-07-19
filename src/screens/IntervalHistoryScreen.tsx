@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInterval, IntervalHistory } from '../context/IntervalContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
+import { shareIntervalResult, shareIntervalStats } from '../utils/shareUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -156,6 +157,22 @@ const IntervalHistoryScreen = ({ navigation }: any) => {
     );
   };
 
+  // 결과 공유 함수
+  const handleShareResult = (history: IntervalHistory) => {
+    shareIntervalResult(history);
+  };
+
+  // 통계 공유 함수
+  const handleShareStats = () => {
+    const stats = {
+      totalSessions: statistics.totalSessions,
+      totalTime: statistics.totalTime,
+      totalCycles: statistics.totalCycles,
+      favoriteTemplate: statistics.favoriteTemplate,
+    };
+    shareIntervalStats(stats);
+  };
+
   // 필터 버튼 렌더링
   const renderFilterButtons = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
@@ -206,8 +223,16 @@ const IntervalHistoryScreen = ({ navigation }: any) => {
 
   // 통계 카드 렌더링
   const renderStatistics = () => (
-    <View style={styles.statisticsCard}>
-      <Text style={styles.statisticsTitle}>📊 통계</Text>
+    <View style={styles.statsContainer}>
+      <View style={styles.statsHeader}>
+        <Text style={styles.statsTitle}>📊 통계</Text>
+        <TouchableOpacity
+          style={styles.shareStatsButton}
+          onPress={handleShareStats}
+        >
+          <Text style={styles.shareStatsIcon}>📤</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.statisticsGrid}>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{statistics.totalSessions}</Text>
@@ -234,65 +259,31 @@ const IntervalHistoryScreen = ({ navigation }: any) => {
   );
 
   // 히스토리 아이템 렌더링
-  const renderHistoryItem = ({ item }: { item: IntervalHistory }) => {
-    const template = templates.find(t => t.id === item.templateId);
-    const templateIcon = template?.icon || '⏱️';
-    
-    return (
-      <View style={styles.historyItem}>
-        <View style={styles.historyHeader}>
-          <View style={styles.historyTitleContainer}>
-            <Text style={styles.historyIcon}>{templateIcon}</Text>
-            <View style={styles.historyTitleText}>
-              <Text style={styles.historyTitle}>{item.templateName}</Text>
-              <Text style={styles.historyDate}>{formatDate(new Date(item.endTime))}</Text>
-            </View>
-          </View>
-          <View style={styles.historyCompletion}>
-            <Text style={styles.completionText}>
-              {item.completedCycles}/{item.totalCycles}
-            </Text>
-            <Text style={styles.completionLabel}>사이클</Text>
-          </View>
-        </View>
-
-        <View style={styles.historyDetails}>
-          <View style={styles.historyDetailItem}>
-            <Text style={styles.detailIcon}>⏱️</Text>
-            <Text style={styles.detailText}>{formatDuration(item.totalDuration)}</Text>
-          </View>
-          <View style={styles.historyDetailItem}>
-            <Text style={styles.detailIcon}>📅</Text>
-            <Text style={styles.detailText}>
-              {new Date(item.startTime).toLocaleTimeString('ko-KR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })} - {new Date(item.endTime).toLocaleTimeString('ko-KR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </Text>
-          </View>
-        </View>
-
-        {/* 완료율 바 */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[
-              styles.progressFill,
-              { 
-                width: `${(item.completedCycles / item.totalCycles) * 100}%`,
-                backgroundColor: item.completedCycles === item.totalCycles ? '#28A745' : '#FF7F50'
-              }
-            ]} />
-          </View>
-          <Text style={styles.progressText}>
-            {Math.round((item.completedCycles / item.totalCycles) * 100)}%
-          </Text>
-        </View>
+  const renderHistoryItem = ({ item }: { item: IntervalHistory }) => (
+    <View style={styles.historyCard}>
+      <View style={styles.historyHeader}>
+        <Text style={styles.historyIcon}>🎯</Text>
+        <Text style={styles.historyTemplate}>{item.templateName}</Text>
+        <TouchableOpacity
+          style={styles.shareButton}
+          onPress={() => handleShareResult(item)}
+        >
+          <Text style={styles.shareIcon}>📤</Text>
+        </TouchableOpacity>
       </View>
-    );
-  };
+      <View style={styles.historyStats}>
+        <Text style={styles.historyStat}>
+          {formatDuration(item.totalDuration)}
+        </Text>
+        <Text style={styles.historyStat}>
+          {item.completedCycles} 사이클
+        </Text>
+        <Text style={styles.historyDate}>
+          {formatDate(new Date(item.endTime))}
+        </Text>
+      </View>
+    </View>
+  );
 
   // 빈 상태 렌더링
   const renderEmptyState = () => (
@@ -646,6 +637,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  historyCard: {
+    backgroundColor: '#4A2C1A',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    marginBottom: 10,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  historyIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  historyTemplate: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFD4B3',
+    flex: 1,
+  },
+  shareButton: {
+    padding: 5,
+  },
+  shareIcon: {
+    fontSize: 14,
+  },
+  historyStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  historyStat: {
+    fontSize: 12,
+    color: '#FFAB7A',
+  },
+  historyDate: {
+    fontSize: 12,
+    color: '#A67C61',
+  },
+  statsContainer: {
+    backgroundColor: '#4A2C1A',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    marginBottom: 20,
+  },
+  statsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFD4B3',
+  },
+  shareStatsButton: {
+    padding: 5,
+  },
+  shareStatsIcon: {
+    fontSize: 16,
   },
 });
 

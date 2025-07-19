@@ -1,11 +1,10 @@
-import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Button, 
-  FlatList, 
-  TouchableOpacity, 
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
   Switch,
   ActivityIndicator,
   Alert,
@@ -16,11 +15,90 @@ import { getSoundById } from '../utils/sounds';
 import NotificationManager from '../notifications/NotificationManager';
 import AlarmTest from '../components/AlarmTest';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AlarmHistoryScreen from '../screens/AlarmHistoryScreen';
+import BackupRestoreScreen from '../screens/BackupRestoreScreen';
+import AlarmStatsScreen from '../screens/AlarmStatsScreen';
+
+// 필터 타입 정의
+type FilterType = 'all' | 'weekdays' | 'weekend' | 'daily' | 'once' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 const HomeScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
   const { alarms, deleteAlarm, toggleAlarm, isLoading } = useAlarm();
   const notificationManager = NotificationManager.getInstance();
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // 필터 옵션 정의
+  const filterOptions = [
+    { key: 'all', label: '전체', icon: '📋' },
+    { key: 'weekdays', label: '평일', icon: '💼' },
+    { key: 'weekend', label: '주말', icon: '🏖️' },
+    { key: 'daily', label: '매일', icon: '🔄' },
+    { key: 'once', label: '한번만', icon: '⏰' },
+    { key: 'monday', label: '월요일', icon: '1️⃣' },
+    { key: 'tuesday', label: '화요일', icon: '2️⃣' },
+    { key: 'wednesday', label: '수요일', icon: '3️⃣' },
+    { key: 'thursday', label: '목요일', icon: '4️⃣' },
+    { key: 'friday', label: '금요일', icon: '5️⃣' },
+    { key: 'saturday', label: '토요일', icon: '6️⃣' },
+    { key: 'sunday', label: '일요일', icon: '7️⃣' },
+  ];
+
+  // 필터링된 알람 목록
+  const filteredAlarms = useMemo(() => {
+    if (selectedFilter === 'all') {
+      return alarms;
+    }
+
+    return alarms.filter(alarm => {
+      const repeatDays = alarm.repeatDays || [];
+      
+      switch (selectedFilter) {
+        case 'weekdays':
+          return repeatDays.includes(1) && repeatDays.includes(2) && 
+                 repeatDays.includes(3) && repeatDays.includes(4) && 
+                 repeatDays.includes(5) && repeatDays.length === 5;
+        case 'weekend':
+          return repeatDays.includes(0) && repeatDays.includes(6) && 
+                 repeatDays.length === 2;
+        case 'daily':
+          return repeatDays.length === 7;
+        case 'once':
+          return repeatDays.length === 0;
+        case 'monday':
+          return repeatDays.includes(1);
+        case 'tuesday':
+          return repeatDays.includes(2);
+        case 'wednesday':
+          return repeatDays.includes(3);
+        case 'thursday':
+          return repeatDays.includes(4);
+        case 'friday':
+          return repeatDays.includes(5);
+        case 'saturday':
+          return repeatDays.includes(6);
+        case 'sunday':
+          return repeatDays.includes(0);
+        default:
+          return true;
+      }
+    });
+  }, [alarms, selectedFilter]);
+
+  // 현재 선택된 필터 정보
+  const currentFilter = filterOptions.find(option => option.key === selectedFilter);
+
+  // navigation 안전성 체크
+  const handleAddAlarm = () => {
+    if (navigation && navigation.navigate) {
+      navigation.navigate('AddAlarm');
+    } else {
+      console.error('❌ navigation이 undefined입니다');
+      // 대체 방법: CustomAlert로 알림
+      Alert.alert('오류', '알람 추가 기능을 사용할 수 없습니다.');
+    }
+  };
 
   const formatRepeatDays = (repeatDays?: number[]) => {
     if (!repeatDays || repeatDays.length === 0) return '한번만';
@@ -81,20 +159,23 @@ const HomeScreen = ({ navigation }: any) => {
   };
 
   const formatNextAlarmTime = (nextTime: Date | null) => {
-    if (!nextTime) return '';
-
+    if (!nextTime) return null;
+    
     const now = new Date();
     const diffMs = nextTime.getTime() - now.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000); // 초 추가
     
     if (diffDays > 0) {
-      return `${diffDays}일 ${diffHours}시간 후`;
+      return `${diffDays}일 ${diffHours}시간 ${diffMinutes}분 후`;
     } else if (diffHours > 0) {
-      return `${diffHours}시간 ${diffMinutes}분 후`;
+      return `${diffHours}시간 ${diffMinutes}분 ${diffSeconds}초 후`;
+    } else if (diffMinutes > 0) {
+      return `${diffMinutes}분 ${diffSeconds}초 후`;
     } else {
-      return `${diffMinutes}분 후`;
+      return `${diffSeconds}초 후`;
     }
   };
 
@@ -109,6 +190,7 @@ const HomeScreen = ({ navigation }: any) => {
             {item.time.toLocaleTimeString('ko-KR', { 
               hour: '2-digit', 
               minute: '2-digit',
+              second: '2-digit', // 초 추가
               hour12: false 
             })}
           </Text>
@@ -152,11 +234,86 @@ const HomeScreen = ({ navigation }: any) => {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
-      <Text style={styles.title}>🌅 RiseUp</Text>
+    <View style={[styles.container, { paddingBottom: insets.bottom + 20 }]}>
+      {/* 헤더 - 타이머 화면과 동일한 구조 */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <Text style={styles.title}>🌅 RiseUp</Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={handleAddAlarm}
+        >
+          <Text style={styles.addButtonText}>+ 추가</Text>
+        </TouchableOpacity>
+      </View>
       
-      {/* 개발용 테스트 버튼 */}
-      {__DEV__ && <AlarmTest />}
+      {/* 고급 기능 버튼들을 한 줄로 배치 */}
+      <View style={styles.advancedButtonsContainer}>
+        <TouchableOpacity 
+          style={styles.advancedButton} 
+          onPress={() => navigation.navigate('AlarmHistory')}
+        >
+          <Text style={styles.advancedButtonText}>📝 히스토리</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.advancedButton} 
+          onPress={() => navigation.navigate('BackupRestore')}
+        >
+          <Text style={styles.advancedButtonText}>💾 백업</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.advancedButton} 
+          onPress={() => navigation.navigate('AlarmStats')}
+        >
+          <Text style={styles.advancedButtonText}>📊 통계</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 필터 섹션 */}
+      <View style={styles.filterSection}>
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <Text style={styles.filterButtonText}>
+            {currentFilter?.icon} {currentFilter?.label} ({filteredAlarms.length})
+          </Text>
+          <Text style={styles.filterArrow}>{showFilters ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 필터 옵션들 */}
+      {showFilters && (
+        <View style={styles.filterOptionsContainer}>
+          <FlatList
+            data={filterOptions}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.filterOption,
+                  selectedFilter === item.key && styles.filterOptionSelected
+                ]}
+                onPress={() => {
+                  setSelectedFilter(item.key as FilterType);
+                  setShowFilters(false);
+                }}
+              >
+                <Text style={[
+                  styles.filterOptionText,
+                  selectedFilter === item.key && styles.filterOptionTextSelected
+                ]}>
+                  {item.icon} {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.key}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterOptionsList}
+          />
+        </View>
+      )}
       
       {alarms.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -164,9 +321,15 @@ const HomeScreen = ({ navigation }: any) => {
           <Text style={styles.emptyText}>설정된 알람이 없습니다</Text>
           <Text style={styles.emptySubText}>첫 알람을 추가해보세요!</Text>
         </View>
+      ) : filteredAlarms.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}></Text>
+          <Text style={styles.emptyText}>해당하는 알람이 없습니다</Text>
+          <Text style={styles.emptySubText}>다른 필터를 선택해보세요!</Text>
+        </View>
       ) : (
         <FlatList
-          data={alarms}
+          data={filteredAlarms}
           renderItem={renderAlarmItem}
           keyExtractor={(item) => item.id}
           style={styles.alarmList}
@@ -174,13 +337,6 @@ const HomeScreen = ({ navigation }: any) => {
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
-      
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => navigation.navigate('AddAlarm')}
-      >
-        <Text style={styles.addButtonText}>+ 알람 추가</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -188,8 +344,33 @@ const HomeScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#2D1B14', // 어두운 브라운 배경
+    backgroundColor: '#2D1B14',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#2D1B14',
+  },
+  title: {
+    color: '#FFD4B3',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  addButton: {
+    backgroundColor: '#FF7F50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -200,14 +381,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#FFAB7A', // 따뜻한 오렌지
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#FFD4B3', // 밝은 피치 색상
+    color: '#FFAB7A',
   },
   emptyContainer: {
     flex: 1,
@@ -225,7 +399,7 @@ const styles = StyleSheet.create({
   },
   emptySubText: {
     fontSize: 14,
-    color: '#A67C61', // 밝은 브라운
+    color: '#A67C61',
     marginBottom: 30,
   },
   alarmList: {
@@ -237,28 +411,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
-    backgroundColor: '#4A2C1A', // 중간 톤 브라운
+    backgroundColor: '#4A2C1A',
     borderRadius: 12,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF7F50', // 코랄 오렌지
+    borderLeftColor: '#FF7F50',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+    width: '90%', // 전체 너비 사용
+    marginLeft: 20,
+    marginRight: 20,
+    marginTop: 1,
   },
   alarmItemDisabled: {
-    backgroundColor: '#3A241A', // 더 어두운 비활성 색상
+    backgroundColor: '#3A241A',
     borderLeftColor: '#8B6341',
   },
   alarmInfo: {
     flex: 1,
+    marginRight: 10, // 오른쪽 컨트롤과의 간격
   },
   timeText: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '', // 밝은 피치
+    color: '#FFD4B3',
   },
   labelText: {
     fontSize: 14,
@@ -272,47 +451,106 @@ const styles = StyleSheet.create({
   },
   nextTimeText: {
     fontSize: 11,
-    color: '#FF7F50', // 코랄 오렌지
+    color: '#FF7F50',
     marginTop: 3,
     fontWeight: '500',
   },
   disabledText: {
-    color: '#6B4E37', // 어두운 브라운
+    color: '#6B4E37',
   },
   alarmControls: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: 80, // 최소 너비 보장
   },
   deleteButton: {
     marginLeft: 15,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#CD5C5C', // 부드러운 레드
+    backgroundColor: '#CD5C5C',
     borderRadius: 6,
   },
   deleteText: {
-    color: '#FFF8DC', // 크림 화이트
+    color: '#FFF8DC',
     fontSize: 12,
     fontWeight: '500',
   },
-  addButton: {
-    backgroundColor: '#FF7F50',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+  advancedButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 20,
+    marginVertical: 15,
+    paddingVertical: 10,
+    backgroundColor: '#4A2C1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341',
   },
-  addButtonText: {
+  advancedButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FF7F50',
+  },
+  advancedButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  filterSection: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  filterButton: {
+    backgroundColor: '#4A2C1A',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filterButtonText: {
+    color: '#FFD4B3',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  filterArrow: {
+    color: '#FFAB7A',
+    fontSize: 12,
+  },
+  filterOptionsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  filterOptionsList: {
+    paddingHorizontal: 10,
+  },
+  filterOption: {
+    backgroundColor: '#4A2C1A',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    marginHorizontal: 5,
+  },
+  filterOptionSelected: {
+    backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
+  },
+  filterOptionText: {
+    color: '#FFD4B3',
+    fontWeight: '500',
+    fontSize: 12,
+  },
+  filterOptionTextSelected: {
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 });
 

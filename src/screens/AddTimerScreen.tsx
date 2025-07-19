@@ -9,9 +9,10 @@ import {
   ScrollView,
   Modal,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTimer } from '../context/TimerContext';
+import { useTimer, TimerCategory } from '../context/TimerContext';
 import SoundSelector from '../components/SoundSelector';
 import CustomAlert from '../components/CustomAlert';
 
@@ -24,12 +25,14 @@ interface PresetTime {
 
 const AddTimerScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
-  const { addTimer } = useTimer();
+  const { addTimer, timerCategories } = useTimer();
   const [selectedMinutes, setSelectedMinutes] = useState(5);
   const [selectedSeconds, setSelectedSeconds] = useState(0);
   const [selectedSoundId, setSelectedSoundId] = useState('default');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('uncategorized');
   const [showPresets, setShowPresets] = useState(false);
   const [showCustomTime, setShowCustomTime] = useState(false);
+  const [showCategorySelector, setShowCategorySelector] = useState(false);
 
   // CustomAlert 상태
   const [alertConfig, setAlertConfig] = useState<{
@@ -90,6 +93,11 @@ const AddTimerScreen = ({ navigation }: any) => {
     setShowPresets(false);
   };
 
+  // 현재 선택된 카테고리 정보
+  const currentCategory = selectedCategoryId === 'uncategorized' 
+    ? { name: '미분류', icon: '❓', color: '#999' }
+    : timerCategories.find(cat => cat.id === selectedCategoryId) || { name: '미분류', icon: '❓', color: '#999' };
+
   const saveTimer = () => {
     if (selectedMinutes === 0 && selectedSeconds === 0) {
       showCustomAlert('⚠️ 시간 설정 오류', '타이머 시간을 설정해주세요.', [
@@ -100,11 +108,13 @@ const AddTimerScreen = ({ navigation }: any) => {
 
     const totalMs = (selectedMinutes * 60 + selectedSeconds) * 1000;
     const timerName = `${selectedMinutes}분 ${selectedSeconds}초`;
-    addTimer(timerName, totalMs, selectedSoundId);
+    
+    // 카테고리 ID를 전달하여 타이머 생성
+    addTimer(timerName, totalMs, selectedSoundId, undefined, selectedCategoryId);
     
     showCustomAlert(
       '✅ 타이머 추가 완료',
-      `${selectedMinutes}분 ${selectedSeconds}초 타이머가 추가되었습니다.`,
+      `${selectedMinutes}분 ${selectedSeconds}초 타이머가 ${currentCategory.name} 카테고리에 추가되었습니다.`,
       [{ text: '확인', style: 'default', onPress: () => navigation.goBack() }]
     );
   };
@@ -116,6 +126,27 @@ const AddTimerScreen = ({ navigation }: any) => {
       onPress={() => handlePresetSelect(preset)}
     >
       <Text style={styles.presetName}>{preset.name}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderCategoryItem = ({ item }: { item: TimerCategory }) => (
+    <TouchableOpacity
+      style={[
+        styles.categoryItem,
+        selectedCategoryId === item.id && styles.categoryItemSelected
+      ]}
+      onPress={() => {
+        setSelectedCategoryId(item.id);
+        setShowCategorySelector(false);
+      }}
+    >
+      <Text style={styles.categoryIcon}>{item.icon}</Text>
+      <Text style={[
+        styles.categoryName,
+        selectedCategoryId === item.id && styles.categoryNameSelected
+      ]}>
+        {item.name}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -161,6 +192,22 @@ const AddTimerScreen = ({ navigation }: any) => {
             </View>
           </View>
 
+          {/* 카테고리 선택 */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>카테고리 선택</Text>
+            
+            <TouchableOpacity
+              style={styles.categorySelector}
+              onPress={() => setShowCategorySelector(true)}
+            >
+              <View style={styles.categoryDisplay}>
+                <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
+                <Text style={styles.categoryText}>{currentCategory.name}</Text>
+              </View>
+              <Text style={styles.categoryArrow}>▼</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* 사운드 선택 */}
           <View style={styles.section}>
             <SoundSelector
@@ -180,6 +227,11 @@ const AddTimerScreen = ({ navigation }: any) => {
               <Text style={styles.previewDuration}>
                 총 {selectedMinutes}분 {selectedSeconds}초
               </Text>
+              <View style={[styles.previewCategory, { backgroundColor: currentCategory.color }]}>
+                <Text style={styles.previewCategoryText}>
+                  {currentCategory.icon} {currentCategory.name}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -197,96 +249,58 @@ const AddTimerScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* 프리셋 모달 */}
-        <Modal
-          visible={showPresets}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowPresets(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setShowPresets(false)}
-                >
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>빠른 시간 선택</Text>
-                <View style={styles.placeholder} />
-              </View>
-
-              <ScrollView style={styles.presetsList}>
-                <View style={styles.presetsGrid}>
-                  {presetTimes.map(renderPresetItem)}
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* 직접 설정 모달 */}
-        <Modal
-          visible={showCustomTime}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowCustomTime(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setShowCustomTime(false)}
-                >
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>시간 직접 설정</Text>
-                <TouchableOpacity
-                  style={styles.modalSaveButton}
-                  onPress={() => setShowCustomTime(false)}
-                >
-                  <Text style={styles.modalSaveText}>완료</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.timePickerContainer}>
-                <View style={styles.timePicker}>
-                  <Text style={styles.timePickerLabel}>분</Text>
-                  <TextInput
-                    style={styles.timeInput}
-                    value={selectedMinutes.toString()}
-                    onChangeText={(text) => {
-                      const num = parseInt(text) || 0;
-                      setSelectedMinutes(Math.min(999, Math.max(0, num)));
-                    }}
-                    keyboardType="numeric"
-                    maxLength={3}
-                  />
-                </View>
-                
-                <Text style={styles.timeSeparator}>:</Text>
-                
-                <View style={styles.timePicker}>
-                  <Text style={styles.timePickerLabel}>초</Text>
-                  <TextInput
-                    style={styles.timeInput}
-                    value={selectedSeconds.toString()}
-                    onChangeText={(text) => {
-                      const num = parseInt(text) || 0;
-                      setSelectedSeconds(Math.min(59, Math.max(0, num)));
-                    }}
-                    keyboardType="numeric"
-                    maxLength={2}
-                  />
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
       </ScrollView>
+
+      {/* 카테고리 선택 모달 */}
+      <Modal
+        visible={showCategorySelector}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCategorySelector(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>카테고리 선택</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowCategorySelector(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={[
+                { id: 'uncategorized', name: '미분류', icon: '❓', color: '#999' },
+                ...timerCategories
+              ]}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.categoryItem,
+                    selectedCategoryId === item.id && styles.categoryItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedCategoryId(item.id);
+                    setShowCategorySelector(false);
+                  }}
+                >
+                  <Text style={styles.categoryIcon}>{item.icon}</Text>
+                  <Text style={[
+                    styles.categoryName,
+                    selectedCategoryId === item.id && styles.categoryNameSelected
+                  ]}>
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item) => item.id}
+              style={styles.categoryList}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* CustomAlert */}
       <CustomAlert
@@ -294,13 +308,10 @@ const AddTimerScreen = ({ navigation }: any) => {
         title={alertConfig.title}
         message={alertConfig.message}
         buttons={alertConfig.buttons}
-        onRequestClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
       />
     </>
   );
 };
-
-const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -314,7 +325,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 30,
@@ -324,19 +335,14 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
-    color: '#FFAB7A',
+    color: '#FFD4B3',
+    marginBottom: 15,
   },
   timeDisplay: {
-    backgroundColor: '#4A2C1A',
-    padding: 30,
-    borderRadius: 15,
     alignItems: 'center',
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#8B6341',
+    marginBottom: 20,
   },
   timeText: {
     fontSize: 48,
@@ -346,59 +352,102 @@ const styles = StyleSheet.create({
   },
   presetButtonsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 10,
   },
   actionButton: {
     flex: 1,
-    backgroundColor: '#5D4037',
-    padding: 15,
+    backgroundColor: '#4A2C1A',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     borderRadius: 10,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#8B6341',
+    alignItems: 'center',
   },
   actionButtonText: {
     color: '#FFD4B3',
+    fontSize: 16,
     fontWeight: '600',
   },
+  categorySelector: {
+    backgroundColor: '#4A2C1A',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  categoryDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  categoryText: {
+    color: '#FFD4B3',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  categoryArrow: {
+    color: '#FFAB7A',
+    fontSize: 16,
+  },
   previewContainer: {
-    marginBottom: 30,
+    marginTop: 20,
   },
   previewTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFD4B3',
     marginBottom: 10,
-    color: '#FFAB7A',
   },
   previewCard: {
     backgroundColor: '#4A2C1A',
     padding: 20,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: '#FF7F50',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#8B6341',
     alignItems: 'center',
   },
   previewTime: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#FF7F50',
-    fontFamily: 'monospace',
     marginBottom: 5,
   },
   previewDuration: {
     fontSize: 14,
     color: '#FFAB7A',
+    marginBottom: 10,
+  },
+  previewCategory: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  previewCategoryText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   buttonContainer: {
+    marginTop: 30,
     gap: 15,
   },
   saveButton: {
-    backgroundColor: '#228B22',
+    backgroundColor: '#FF7F50',
     paddingVertical: 15,
-    borderRadius: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#32CD32',
+    borderColor: '#FF6347',
   },
   saveButtonText: {
     color: '#FFF',
@@ -408,128 +457,92 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: '#8B4513',
     paddingVertical: 15,
-    borderRadius: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#A0522D',
   },
   cancelButtonText: {
     color: '#FFD4B3',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
   },
+  // 모달 스타일
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  modalContainer: {
+  modalContent: {
     backgroundColor: '#2D1B14',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    minHeight: '50%',
-    maxHeight: '80%',
-    paddingTop: 20,
+    borderRadius: 15,
+    width: '80%',
+    maxHeight: '70%',
     borderWidth: 2,
-    borderColor: '#4A2C1A',
+    borderColor: '#8B6341',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#4A2C1A',
-  },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#4A2C1A',
-    borderRadius: 15,
-  },
-  modalCloseText: {
-    color: '#FFD4B3',
-    fontSize: 16,
-    fontWeight: 'bold',
+    borderBottomColor: '#8B6341',
   },
   modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#FFD4B3',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
-  modalSaveButton: {
-    backgroundColor: '#FF7F50',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 15,
+  modalCloseButton: {
+    padding: 5,
   },
-  modalSaveText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+  modalCloseText: {
+    fontSize: 24,
+    color: '#FFAB7A',
   },
-  placeholder: {
-    width: 30,
-  },
-  presetsList: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  presetsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingVertical: 20,
-  },
-  presetItem: {
-    width: '48%',
-    backgroundColor: '#4A2C1A',
+  categoryList: {
     padding: 20,
-    borderRadius: 15,
-    marginBottom: 15,
+  },
+  categoryItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: '#4A2C1A',
+    borderWidth: 1,
+    borderColor: '#8B6341',
+  },
+  categoryItemSelected: {
+    backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
+  },
+  categoryName: {
+    color: '#FFD4B3',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  categoryNameSelected: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  // 기존 스타일들...
+  presetItem: {
+    backgroundColor: '#4A2C1A',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#8B6341',
   },
   presetName: {
     color: '#FFD4B3',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  timePickerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-    gap: 20,
-  },
-  timePicker: {
-    alignItems: 'center',
-  },
-  timePickerLabel: {
-    color: '#FFAB7A',
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  timeInput: {
-    backgroundColor: '#4A2C1A',
-    color: '#FFD4B3',
-    fontSize: 24,
-    fontWeight: 'bold',
     textAlign: 'center',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#8B6341',
-    minWidth: 80,
-    fontFamily: 'monospace',
-  },
-  timeSeparator: {
-    color: '#FFD4B3',
-    fontSize: 24,
-    fontWeight: 'bold',
   },
 });
 

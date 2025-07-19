@@ -9,12 +9,13 @@ import {
   FlatList,
   Dimensions,
   Platform,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInterval } from '../context/IntervalContext';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
-import IntervalHistoryScreen from '../screens/IntervalHistoryScreen';
+import { shareIntervalTemplate } from '../utils/shareUtils';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -213,60 +214,68 @@ const IntervalSignalScreen = ({ navigation }: any) => {
     );
   };
 
-  // 템플릿 카드 렌더링
-  const renderTemplateItem = ({ item }: { item: any }) => {
-    const totalDuration = item.phases.reduce((sum: number, phase: any) => sum + phase.duration, 0) * item.totalCycles;
-    
-    return (
-      <TouchableOpacity
-        style={styles.templateCard}
-        onPress={() => handleStartTemplate(item.id)}
-        disabled={!!currentSession}
-      >
-        <View style={styles.templateHeader}>
-          <Text style={styles.templateIcon}>{item.icon}</Text>
-          <View style={styles.templateInfo}>
-            <Text style={styles.templateName}>{item.name}</Text>
-            <Text style={styles.templateDescription}>{item.description}</Text>
-          </View>
-        </View>
-
-        <View style={styles.templateDetails}>
-          <View style={styles.templateStat}>
-            <Text style={styles.statLabel}>사이클</Text>
-            <Text style={styles.statValue}>{item.totalCycles}</Text>
-          </View>
-          <View style={styles.templateStat}>
-            <Text style={styles.statLabel}>총 시간</Text>
-            <Text style={styles.statValue}>{formatTime(totalDuration)}</Text>
-          </View>
-          <View style={styles.templateStat}>
-            <Text style={styles.statLabel}>단계</Text>
-            <Text style={styles.statValue}>{item.phases.length}</Text>
-          </View>
-        </View>
-
-        {/* 페이즈 프리뷰 */}
-        <View style={styles.phasePreview}>
-          {item.phases.map((phase: any, index: number) => (
-            <View
-              key={index}
-              style={[
-                styles.phasePreviewItem,
-                { backgroundColor: phase.color }
-              ]}
-            />
-          ))}
-        </View>
-
-        {currentSession && (
-          <View style={styles.disabledOverlay}>
-            <Text style={styles.disabledText}>세션 진행 중</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
+  // 템플릿 공유 함수
+  const handleShareTemplate = (template: any) => {
+    shareIntervalTemplate(template);
   };
+
+  // 템플릿 렌더링 함수 수정
+  const renderTemplateItem = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.templateCard}
+      onPress={() => handleStartTemplate(item.id)}
+      disabled={!!currentSession}
+    >
+      <View style={styles.templateHeader}>
+        <Text style={styles.templateIcon}>{item.icon}</Text>
+        <View style={styles.templateInfo}>
+          <Text style={styles.templateName}>{item.name}</Text>
+          <Text style={styles.templateDescription}>{item.description}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.shareButton}
+          onPress={() => handleShareTemplate(item)}
+        >
+          <Text style={styles.shareIcon}>📤</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.templateDetails}>
+        <View style={styles.templateStat}>
+          <Text style={styles.statLabel}>사이클</Text>
+          <Text style={styles.statValue}>{item.totalCycles}</Text>
+        </View>
+        <View style={styles.templateStat}>
+          <Text style={styles.statLabel}>총 시간</Text>
+          <Text style={styles.statValue}>{formatTime(item.totalDuration)}</Text>
+        </View>
+        <View style={styles.templateStat}>
+          <Text style={styles.statLabel}>단계</Text>
+          <Text style={styles.statValue}>{item.phases.length}</Text>
+        </View>
+      </View>
+
+      {/* 페이즈 프리뷰 */}
+      <View style={styles.phasePreview}>
+        {item.phases.map((phase: any, index: number) => (
+          <View
+            key={index}
+            style={[
+              styles.phasePreviewItem,
+              { backgroundColor: phase.color }
+            ]}
+          />
+        ))}
+      </View>
+
+      {currentSession && (
+        <View style={styles.disabledOverlay}>
+          <Text style={styles.disabledText}>세션 진행 중</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
 
   // 빈 상태 렌더링
   const renderEmptyState = () => (
@@ -286,8 +295,8 @@ const IntervalSignalScreen = ({ navigation }: any) => {
 
   return (
     <>
-      <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
-        {/* 헤더 - SafeArea 고려하여 수정 */}
+      <View style={[styles.container, { paddingBottom: insets.bottom + 20 }]}>
+        {/* 헤더 - 중복 제거하고 하나로 통합 */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.title}>⏳ 인터벌 신호</Text>
           <TouchableOpacity 
@@ -295,6 +304,37 @@ const IntervalSignalScreen = ({ navigation }: any) => {
             onPress={() => navigation.navigate('AddIntervalTemplate')}
           >
             <Text style={styles.addButtonText}>+ 추가</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* 고급 기능 버튼들을 한 줄로 배치 */}
+        <View style={styles.advancedButtonsContainer}>
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('AddIntervalTemplate')}
+          >
+            <Text style={styles.advancedButtonText}>➕ 템플릿</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('IntervalHistory')}
+          >
+            <Text style={styles.advancedButtonText}>📝 히스토리</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('IntervalStats')}
+          >
+            <Text style={styles.advancedButtonText}>📊 통계</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('IntervalBackup')}
+          >
+            <Text style={styles.advancedButtonText}>💾 백업</Text>
           </TouchableOpacity>
         </View>
 
@@ -311,13 +351,6 @@ const IntervalSignalScreen = ({ navigation }: any) => {
               <Text style={styles.sectionTitle}>
                 템플릿 ({filteredTemplates.length}개)
               </Text>
-              {history.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('IntervalHistory')}
-                >
-                  <Text style={styles.historyButton}>히스토리</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {filteredTemplates.length > 0 ? (
@@ -360,7 +393,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
-    backgroundColor: '#1A1A1A', // 배경색 추가
+    backgroundColor: '#1A1A1A',
   },
   title: {
     color: 'white',
@@ -380,6 +413,29 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  advancedButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 20,
+    marginVertical: 15,
+    paddingVertical: 10,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  advancedButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FF7F50',
+  },
+  advancedButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   currentSessionCard: {
     margin: 20,
@@ -527,11 +583,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  historyButton: {
-    color: '#FF7F50',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   templateCard: {
     backgroundColor: '#2A2A2A',
     borderRadius: 12,
@@ -627,6 +678,12 @@ const styles = StyleSheet.create({
     color: '#A67C61',
     fontSize: 14,
     textAlign: 'center',
+  },
+  shareButton: {
+    padding: 5,
+  },
+  shareIcon: {
+    fontSize: 16,
   },
 });
 

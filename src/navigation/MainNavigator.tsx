@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomTabBar from '../components/CustomTabBar';
 import TabContentRenderer from '../components/TabContentRenderer';
 import { useTab } from '../context/TabContext';
@@ -14,31 +15,34 @@ import StopwatchScreen from '../screens/StopwatchScreen';
 import WorldClockScreen from '../screens/WorldClockScreen';
 import IntervalSignalScreen from '../screens/IntervalSignalScreen';
 import SportsTimerScreen from '../screens/SportsTimerScreen';
+import AddIntervalTemplateScreen from '../screens/AddIntervalTemplateScreen';
+import IntervalHistoryScreen from '../screens/IntervalHistoryScreen';
+import AlarmHistoryScreen from '../screens/AlarmHistoryScreen';
+import BackupRestoreScreen from '../screens/BackupRestoreScreen';
+import AlarmStatsScreen from '../screens/AlarmStatsScreen';
+import TimerTemplatesScreen from '../screens/TimerTemplatesScreen';
+import TimerHistoryScreen from '../screens/TimerHistoryScreen';
+import TimerCategoriesScreen from '../screens/TimerCategoriesScreen';
+import IntervalStatsScreen from '../screens/IntervalStatsScreen';
+import IntervalBackupScreen from '../screens/IntervalBackupScreen';
 
 const Stack = createStackNavigator();
 
 const MainTabScreen = ({ navigation }: any) => {
   const { tabs, activeTab, setActiveTab, isLoading } = useTab();
+  const insets = useSafeAreaInsets();
+
+  // 탭바 높이 계산 (고정값)
+  const TAB_BAR_HEIGHT = 80;
 
   // useMemo로 탭 배열 안정화
   const updatedTabs = useMemo(() => {
-    console.log('🔄 MainTabScreen Debug:');
-    console.log('  - isLoading:', isLoading);
-    console.log('  - tabs length:', tabs?.length);
-    console.log('  - activeTab:', activeTab);
-
     if (!tabs || tabs.length === 0) {
-      console.log('⚠️ 탭이 비어있음, 기본 탭 사용');
       return DEFAULT_TABS;
     }
 
-    // 각 탭의 컴포넌트가 유효한지 확인
     return tabs.map(tab => {
-      console.log(`🔍 탭 ${tab.id} 컴포넌트 확인:`, tab.component);
-      
-      // 컴포넌트가 null이거나 undefined인 경우 기본 컴포넌트로 대체
       if (!tab.component) {
-        console.log(`⚠️ 탭 ${tab.id}의 컴포넌트가 null입니다. 기본 컴포넌트로 대체`);
         if (tab.id === 'Alarm') {
           return { ...tab, component: HomeScreen };
         } else if (tab.id === 'Timer') {
@@ -53,7 +57,6 @@ const MainTabScreen = ({ navigation }: any) => {
           return { ...tab, component: SportsTimerScreen };
         }
       }
-      
       return tab;
     });
   }, [tabs, isLoading]);
@@ -63,21 +66,26 @@ const MainTabScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.contentContainer}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* 콘텐츠 영역 - 탭바 높이만큼만 하단 패딩 */}
+      <View style={[styles.contentContainer, { paddingBottom: TAB_BAR_HEIGHT }]}>
         <TabContentRenderer 
           tabs={updatedTabs} 
           activeTab={activeTab} 
+          navigation={navigation}
         />
       </View>
       
-      <CustomTabBar
-        tabs={updatedTabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onSettingsPress={handleSettingsPress}
-        scrollable={true}
-      />
+      {/* 탭바 영역 - 하단 SafeArea 적용 */}
+      <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
+        <CustomTabBar
+          tabs={updatedTabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onSettingsPress={handleSettingsPress}
+          scrollable={true}
+        />
+      </View>
     </View>
   );
 };
@@ -89,17 +97,38 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    paddingBottom: 80,
+  },
+  tabBarContainer: {
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
 });
 
 const MainNavigator = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs" component={MainTabScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="MainTab" component={MainTabScreen} />
       <Stack.Screen name="AddAlarm" component={AddAlarmScreen} />
       <Stack.Screen name="AddTimer" component={AddTimerScreen} />
       <Stack.Screen name="TabManager" component={TabManagerScreen} />
+      <Stack.Screen name="AddIntervalTemplate" component={AddIntervalTemplateScreen} />
+      <Stack.Screen name="AlarmHistory" component={AlarmHistoryScreen} />
+      <Stack.Screen name="BackupRestore" component={BackupRestoreScreen} />
+      <Stack.Screen name="AlarmStats" component={AlarmStatsScreen} />
+      <Stack.Screen name="TimerTemplates" component={TimerTemplatesScreen} />
+      <Stack.Screen name="TimerHistory" component={TimerHistoryScreen} />
+      <Stack.Screen name="TimerCategories" component={TimerCategoriesScreen} />
+      <Stack.Screen name="IntervalStats" component={IntervalStatsScreen} />
+      <Stack.Screen name="IntervalBackup" component={IntervalBackupScreen} />
     </Stack.Navigator>
   );
 };

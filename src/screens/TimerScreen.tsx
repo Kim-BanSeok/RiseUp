@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   Vibration,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimer, Timer } from '../context/TimerContext';
@@ -15,7 +16,34 @@ import CustomAlert from '../components/CustomAlert';
 
 const TimerScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
-  const { timers, deleteTimer, startTimer, pauseTimer, resetTimer } = useTimer();
+  const { timers, deleteTimer, startTimer, pauseTimer, resetTimer, isLoading, timerCategories } = useTimer();
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // 필터링된 타이머 목록 - 성능 최적화
+  const filteredTimers = useMemo(() => {
+    if (selectedCategory === 'all') {
+      return timers;
+    }
+    
+    // 카테고리별 필터링
+    return timers.filter(timer => {
+      const timerCategory = timer.category || 'uncategorized';
+      return timerCategory === selectedCategory;
+    });
+  }, [timers, selectedCategory]);
+
+  // 현재 선택된 카테고리 정보
+  const currentCategory = useMemo(() => {
+    if (selectedCategory === 'all') {
+      return { name: '전체', icon: '📋' };
+    }
+    if (selectedCategory === 'uncategorized') {
+      return { name: '미분류', icon: '❓' };
+    }
+    const category = timerCategories.find(c => c.id === selectedCategory);
+    return category ? { name: category.name, icon: category.icon } : { name: '전체', icon: '📋' };
+  }, [selectedCategory, timerCategories]);
 
   // CustomAlert 상태
   const [alertConfig, setAlertConfig] = useState<{
@@ -100,6 +128,7 @@ const TimerScreen = ({ navigation }: any) => {
 
   const renderTimerItem = ({ item: timer }: { item: Timer }) => {
     const progress = getProgress(timer);
+    const category = timerCategories.find(c => c.id === timer.category);
     
     return (
       <View style={[
@@ -147,6 +176,12 @@ const TimerScreen = ({ navigation }: any) => {
               {timer.isCompleted ? '✅ 완료' : 
                timer.isRunning ? '🔄 실행 중' : '⏸️ 일시정지'}
             </Text>
+            <Text style={styles.timerName}>{timer.name}</Text>
+            {category && (
+              <View style={[styles.categoryTag, { backgroundColor: category.color }]}>
+                <Text style={styles.categoryText}>{category.icon} {category.name}</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.timerControls}>
@@ -192,46 +227,139 @@ const TimerScreen = ({ navigation }: any) => {
     );
   };
 
+  // 필터 옵션 렌더링
+  const renderFilterOption = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={[
+        styles.filterOption,
+        selectedCategory === item.key && styles.filterOptionSelected
+      ]}
+      onPress={() => {
+        setSelectedCategory(item.key);
+        setShowFilters(false);
+      }}
+    >
+      <Text style={[
+        styles.filterOptionText,
+        selectedCategory === item.key && styles.filterOptionTextSelected
+      ]}>
+        {item.icon} {item.label}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // 빈 상태 렌더링
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>⏲️</Text>
+      <Text style={styles.emptyText}>
+        {selectedCategory === 'all' 
+          ? '설정된 타이머가 없습니다' 
+          : selectedCategory === 'uncategorized'
+          ? '미분류 타이머가 없습니다'
+          : '해당 카테고리의 타이머가 없습니다'
+        }
+      </Text>
+      <Text style={styles.emptySubText}>첫 타이머를 추가해보세요!</Text>
+    </View>
+  );
+
+  // 필터 데이터
+  const filterData = [
+    { key: 'all', label: '전체', icon: '📋' },
+    { key: 'uncategorized', label: '미분류', icon: '❓' },
+    ...timerCategories.map(cat => ({
+      key: cat.id,
+      label: cat.name,
+      icon: cat.icon
+    }))
+  ];
+
   return (
     <>
-      <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
-        {/* 헤더 */}
-        <View style={styles.header}>
+      <View style={[styles.container, { paddingBottom: insets.bottom + 20 }]}>
+        {/* 헤더 - 인터벌 화면과 동일한 구조 */}
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.title}>⏲️ 타이머</Text>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.addButton}
             onPress={() => navigation.navigate('AddTimer')}
           >
             <Text style={styles.addButtonText}>+ 추가</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* 고급 기능 버튼들을 한 줄로 배치 */}
+        <View style={styles.advancedButtonsContainer}>
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('TimerTemplates')}
+          >
+            <Text style={styles.advancedButtonText}>📋 템플릿</Text>
+          </TouchableOpacity>
 
-        {/* 타이머 목록 */}
-        {timers.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>등록된 타이머가 없습니다</Text>
-            <Text style={styles.emptySubText}>
-              '+ 추가' 버튼을 눌러 타이머를 만들어보세요
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('TimerHistory')}
+          >
+            <Text style={styles.advancedButtonText}>📊 히스토리</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.advancedButton} 
+            onPress={() => navigation.navigate('TimerCategories')}
+          >
+            <Text style={styles.advancedButtonText}>🏷️ 카테고리</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 카테고리 필터 섹션 */}
+        <View style={styles.filterSection}>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Text style={styles.filterButtonText}>
+              {currentCategory.icon} {currentCategory.name} ({filteredTimers.length})
             </Text>
-            <TouchableOpacity
-              style={styles.emptyAddButton}
-              onPress={() => navigation.navigate('AddTimer')}
-            >
-              <Text style={styles.emptyAddButtonText}>⏲️ 첫 타이머 만들기</Text>
-            </TouchableOpacity>
+            <Text style={styles.filterArrow}>{showFilters ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 필터 옵션들 */}
+        {showFilters && (
+          <View style={styles.filterOptionsContainer}>
+            <FlatList
+              data={filterData}
+              renderItem={renderFilterOption}
+              keyExtractor={(item) => item.key}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterOptionsList}
+            />
           </View>
+        )}
+
+        {/* 타이머 목록 - FlatList를 직접 사용 */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>타이머를 불러오는 중...</Text>
+          </View>
+        ) : filteredTimers.length === 0 ? (
+          renderEmptyState()
         ) : (
           <FlatList
-            data={timers}
+            data={filteredTimers}
             renderItem={renderTimerItem}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.timersList}
+            style={styles.timerList}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           />
         )}
       </View>
 
-      {/* CustomAlert */}
       <CustomAlert
         visible={alertConfig.visible}
         title={alertConfig.title}
@@ -243,92 +371,165 @@ const TimerScreen = ({ navigation }: any) => {
   );
 };
 
-const { width } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#2D1B14',
-    paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#2D1B14',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
     color: '#FFD4B3',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   addButton: {
     backgroundColor: '#FF7F50',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FFD4B3',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   addButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  advancedButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 20,
+    marginVertical: 15,
+    paddingVertical: 10,
+    backgroundColor: '#4A2C1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+  },
+  advancedButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FF7F50',
+  },
+  advancedButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  filterSection: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  filterButton: {
+    backgroundColor: '#4A2C1A',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filterButtonText: {
+    color: '#FFD4B3',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  filterArrow: {
+    color: '#FFAB7A',
+    fontSize: 12,
+  },
+  filterOptionsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  filterOptionsList: {
+    paddingHorizontal: 10,
+  },
+  filterOption: {
+    backgroundColor: '#4A2C1A',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#8B6341',
+    marginHorizontal: 5,
+  },
+  filterOptionSelected: {
+    backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
+  },
+  filterOptionText: {
+    color: '#FFD4B3',
+    fontWeight: '500',
+    fontSize: 12,
+  },
+  filterOptionTextSelected: {
     color: '#FFF',
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
     fontSize: 16,
+    color: '#FFAB7A',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
+  },
+  emptyIcon: {
+    fontSize: 60,
+    marginBottom: 15,
   },
   emptyText: {
     fontSize: 18,
     color: '#FFAB7A',
-    textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptySubText: {
     fontSize: 14,
     color: '#A67C61',
-    textAlign: 'center',
-    lineHeight: 20,
     marginBottom: 30,
   },
-  emptyAddButton: {
-    backgroundColor: '#5D4037',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#8B6341',
-  },
-  emptyAddButtonText: {
-    color: '#FFD4B3',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  timersList: {
-    paddingBottom: 20,
+  timerList: {
+    flex: 1,
   },
   timerCard: {
     backgroundColor: '#4A2C1A',
-    borderRadius: 15,
+    borderRadius: 12,
     padding: 15,
-    marginBottom: 10,
-    borderWidth: 2,
+    marginBottom: 12,
+    borderWidth: 1,
     borderColor: '#8B6341',
   },
-  runningCard: {
-    borderColor: '#4FC3F7',
-    backgroundColor: '#2E3A4A',
-  },
   completedCard: {
-    borderColor: '#32CD32',
-    backgroundColor: '#2A4A2A',
+    backgroundColor: '#3A241A',
+    borderColor: '#666',
+  },
+  runningCard: {
+    borderColor: '#FF7F50',
+    borderWidth: 2,
   },
   firstRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
@@ -336,42 +537,41 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginRight: 10,
   },
   progressBarBackground: {
     flex: 1,
-    height: 6,
-    backgroundColor: '#3A241A',
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: '#8B6341',
+    borderRadius: 4,
+    marginRight: 10,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     backgroundColor: '#FF7F50',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   completedProgress: {
     backgroundColor: '#32CD32',
   },
   progressText: {
+    fontSize: 12,
     color: '#FFAB7A',
-    fontSize: 11,
-    fontWeight: '600',
     minWidth: 30,
     textAlign: 'right',
   },
   deleteButton: {
-    width: 25,
-    height: 25,
-    borderRadius: 12,
-    backgroundColor: '#8B4513',
+    backgroundColor: '#E74C3C',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteButtonText: {
-    color: '#FFD4B3',
-    fontSize: 14,
+    color: '#FFF',
+    fontSize: 18,
     fontWeight: 'bold',
   },
   secondRow: {
@@ -386,59 +586,70 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFD4B3',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    marginBottom: 2,
-  },
-  runningTime: {
-    color: '#4FC3F7',
+    marginBottom: 5,
   },
   completedTime: {
     color: '#32CD32',
   },
-  timerStatus: {
-    fontSize: 12,
-    color: '#FFAB7A',
+  runningTime: {
+    color: '#FF7F50',
   },
-  runningStatus: {
-    color: '#4FC3F7',
+  timerStatus: {
+    fontSize: 14,
+    color: '#FFAB7A',
+    marginBottom: 5,
   },
   completedStatus: {
     color: '#32CD32',
+  },
+  runningStatus: {
+    color: '#FF7F50',
+  },
+  timerName: {
+    fontSize: 16,
+    color: '#FFD4B3',
+    marginBottom: 5,
+  },
+  categoryTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categoryText: {
+    fontSize: 10,
+    color: '#FFF',
+    fontWeight: '600',
   },
   timerControls: {
     flexDirection: 'row',
     gap: 10,
   },
   controlBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
   },
   resetBtn: {
     backgroundColor: '#8B4513',
-    borderColor: '#A0522D',
   },
   resetBtnText: {
-    fontSize: 14,
+    fontSize: 18,
+    color: '#FFD4B3',
   },
   playPauseBtn: {
     backgroundColor: '#228B22',
-    borderColor: '#32CD32',
   },
   pauseBtn: {
-    backgroundColor: '#DAA520',
-    borderColor: '#FFD700',
+    backgroundColor: '#FFA500',
   },
   disabledBtn: {
-    backgroundColor: '#555',
-    borderColor: '#777',
-    opacity: 0.5,
+    backgroundColor: '#666',
   },
   playPauseBtnText: {
-    fontSize: 14,
+    fontSize: 18,
     color: '#FFF',
   },
   pauseBtnText: {

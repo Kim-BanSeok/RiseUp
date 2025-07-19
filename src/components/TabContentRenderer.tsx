@@ -5,16 +5,19 @@ import { TabConfig } from './CustomTabBar';
 interface TabContentRendererProps {
   tabs?: TabConfig[];
   activeTab?: string;
+  navigation?: any; // navigation prop 추가
 }
 
 const TabContentRenderer: React.FC<TabContentRendererProps> = ({
   tabs = [],
   activeTab = '',
+  navigation, // navigation prop 받기
 }) => {
   // 디버깅 정보 출력
   console.log(' TabContentRenderer Debug:');
   console.log('  - tabs:', tabs?.map(t => ({ id: t.id, title: t.title, hasComponent: !!t.component })));
   console.log('  - activeTab:', activeTab);
+  console.log('  - navigation:', !!navigation);
   console.log('  - tabs length:', tabs?.length);
 
   // 안전한 탭 찾기
@@ -82,7 +85,7 @@ const TabContentRenderer: React.FC<TabContentRendererProps> = ({
         console.log('✅ 대체 컴포넌트 사용:', fallbackComponent.name);
         return (
           <View style={{ flex: 1 }}>
-            <fallbackComponent />
+            <fallbackComponent navigation={navigation} />
           </View>
         );
       }
@@ -106,7 +109,7 @@ const TabContentRenderer: React.FC<TabContentRendererProps> = ({
     // JSX로 렌더링 (함수형 컴포넌트도 지원)
     return (
       <View style={{ flex: 1 }}>
-        <Component />
+        <Component navigation={navigation} />
       </View>
     );
   } catch (error) {

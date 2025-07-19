@@ -36,6 +36,8 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [musicFiles, setMusicFiles] = useState<MusicFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // playingSound state 추가
+  const [playingSound, setPlayingSound] = useState<string | null>(null);
 
   // CustomAlert 상태
   const [alertConfig, setAlertConfig] = useState<{
@@ -87,6 +89,13 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
     initializeMusic();
   }, []);
 
+  // 컴포넌트 언마운트 시 사운드 정지
+  useEffect(() => {
+    return () => {
+      stopCurrentSound();
+    };
+  }, []);
+
   const initializeMusic = async () => {
     await initializeDefaultMusic();
     await loadMusicFiles();
@@ -100,7 +109,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
   const handleSoundSelect = (sound: SoundOption | MusicFile) => {
     const soundId = 'uri' in sound ? `music_${sound.id}` : sound.id;
     onSoundChange(soundId);
-    setModalVisible(false);
+    setIsModalVisible(false); // setModalVisible → setIsModalVisible 수정
     stopCurrentSound();
   };
 
@@ -366,7 +375,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
         
         <TouchableOpacity
           style={styles.selector}
-          onPress={() => setModalVisible(true)}
+          onPress={() => setIsModalVisible(true)} // setModalVisible → setIsModalVisible 수정
         >
           <View style={styles.selectorContent}>
             <Text style={styles.selectedSoundName}>
@@ -391,7 +400,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
           animationType="slide"
           presentationStyle="pageSheet"
           onRequestClose={() => {
-            setModalVisible(false);
+            setIsModalVisible(false); // setModalVisible → setIsModalVisible 수정
             stopCurrentSound();
           }}
         >
@@ -400,7 +409,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => {
-                  setModalVisible(false);
+                  setIsModalVisible(false); // setModalVisible → setIsModalVisible 수정
                   stopCurrentSound();
                 }}
               >
@@ -420,7 +429,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>내 음악 ({musicFiles.length})</Text>
-                  <TouchableOpacity
+                  {/* <TouchableOpacity
                     style={[styles.addButton, isLoading && styles.addButtonDisabled]}
                     onPress={handleAddMusicFile}
                     disabled={isLoading}
@@ -430,7 +439,7 @@ const SoundSelector: React.FC<SoundSelectorProps> = ({
                     ) : (
                       <Text style={styles.addButtonText}>+ 추가</Text>
                     )}
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </View>
                 
                 {musicFiles.map(renderMusicItem)}
@@ -611,11 +620,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 15,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 15,
     marginBottom: 5,
   },
   selectedSoundItem: {
     backgroundColor: '#4A2C1A',
+    marginBottom: 10,
   },
   soundInfo: {
     flex: 1,

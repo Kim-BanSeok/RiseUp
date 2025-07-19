@@ -1,6 +1,6 @@
 import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import GlobalAlert from '../utils/GlobalAlert';
+import { GlobalAlert } from '../utils/GlobalAlert';
 
 const { AlarmModule } = NativeModules;
 
