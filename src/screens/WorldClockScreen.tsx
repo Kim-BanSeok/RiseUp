@@ -557,18 +557,20 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'flex-start', // 변경: flex-end에서 flex-start로
+    justifyContent: 'flex-start',
+    zIndex: 600, // 탭바보다 낮게
   },
   modalContainer: {
-    flex: 1, // 변경: 화면 전체 차지
+    flex: 1,
     backgroundColor: '#2D1B14',
-    borderTopLeftRadius: 0, // 변경: 모서리 둥글기 제거
-    borderTopRightRadius: 0, // 변경: 모서리 둥글기 제거
-    borderRadius: 0, // 추가: 모든 모서리 직각
-    minHeight: '100%', // 변경: 화면 전체 높이
-    maxHeight: '100%', // 변경: 화면 전체 높이
-    borderWidth: 0, // 변경: 테두리 제거
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderRadius: 0,
+    minHeight: '100%',
+    maxHeight: '100%',
+    borderWidth: 0,
     borderColor: 'transparent',
+    zIndex: 601,
   },
   modalHeader: {
     flexDirection: 'row',

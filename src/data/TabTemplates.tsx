@@ -5,6 +5,12 @@ import NotesScreen from '../screens/NotesScreen';
 import FlashlightScreen from '../screens/FlashlightScreen';
 import WeatherScreen from '../screens/WeatherScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import MeditationTimerScreen from '../screens/MeditationTimerScreen';
+import ExerciseTrackerScreen from '../screens/ExerciseTrackerScreen';
+import MusicPlayerScreen from '../screens/MusicPlayerScreen';
+import MiniGamesScreen from '../screens/MiniGamesScreen';
+import QRScannerScreen from '../screens/QRScannerScreen';
+import UnitConverterScreen from '../screens/UnitConverterScreen';
 
 export interface TabTemplate {
   id: string;
@@ -72,7 +78,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '손전등',
     icon: '🔦',
     description: '화면 밝기 조절',
-    component: FlashlightScreen, // 실제 컴포넌트로 변경
+    component: FlashlightScreen,
     category: 'utility'
   },
   
@@ -82,15 +88,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '메모',
     icon: '📝',
     description: '빠른 메모 작성',
-    component: NotesScreen, // 실제 컴포넌트로 변경
-    category: 'productivity'
-  },
-  {
-    id: 'calendar',
-    title: '캘린더',
-    icon: '📅',
-    description: '일정 관리',
-    component: createDevelopmentScreen('캘린더'),
+    component: NotesScreen,
     category: 'productivity'
   },
   {
@@ -108,7 +106,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '명상',
     icon: '🧘‍♂️',
     description: '명상 타이머',
-    component: createDevelopmentScreen('명상'),
+    component: MeditationTimerScreen,
     category: 'health'
   },
   {
@@ -116,7 +114,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '운동',
     icon: '💪',
     description: '운동 기록',
-    component: createDevelopmentScreen('운동'),
+    component: ExerciseTrackerScreen,
     category: 'health'
   },
   
@@ -126,7 +124,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '음악',
     icon: '🎵',
     description: '음악 플레이어',
-    component: createDevelopmentScreen('음악'),
+    component: MusicPlayerScreen,
     category: 'entertainment'
   },
   {
@@ -134,7 +132,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '게임',
     icon: '🎮',
     description: '미니 게임',
-    component: createDevelopmentScreen('게임'),
+    component: MiniGamesScreen,
     category: 'entertainment'
   },
   
@@ -144,7 +142,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: 'QR코드',
     icon: '📱',
     description: 'QR 스캐너',
-    component: createDevelopmentScreen('QR코드'),
+    component: QRScannerScreen,
     category: 'tools'
   },
   {
@@ -152,7 +150,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '변환기',
     icon: '🔄',
     description: '단위 변환',
-    component: createDevelopmentScreen('변환기'),
+    component: UnitConverterScreen,
     category: 'tools'
   },
 ];
@@ -168,5 +166,5 @@ export const TEMPLATE_CATEGORIES = [
   { id: 'productivity', name: '생산성', icon: '📊' },
   { id: 'health', name: '건강', icon: '💚' },
   { id: 'entertainment', name: '엔터테인먼트', icon: '🎭' },
-  { id: 'tools', name: '도구', icon: '️' },
+  { id: 'tools', name: '도구', icon: '🔧' },
 ] as const; 

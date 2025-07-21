@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   FlatList,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTab } from '../context/TabContext';
@@ -293,25 +294,32 @@ const TabManagerScreen = ({ navigation }: any) => {
     </View>
   );
 
+  // 탭바 높이 계산 (MainNavigator와 동일하게)
+  const TAB_BAR_HEIGHT = 80 + (Platform.OS === 'ios' ? 20 : 10) + insets.bottom;
+
   return (
     <>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* 헤더 */}
-        <View style={styles.header}>
+      <View style={styles.container}>
+        {/* 헤더 - SafeArea 적용 */}
+        <View style={[styles.header, { paddingTop: insets.top + 15 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backButton}>← 돌아가기</Text>
           </TouchableOpacity>
           <Text style={styles.title}>탭 관리</Text>
-          {/* 테스트 버튼 추가 */}
-          <TouchableOpacity onPress={handleTestAlert}>
-            <Text style={styles.resetButton}>테스트</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={handleResetTabs}>
             <Text style={styles.resetButton}>초기화</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content}>
+        {/* 콘텐츠 스크롤 영역 */}
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={[
+            styles.contentContainer,
+            { paddingBottom: TAB_BAR_HEIGHT + 20 } // 탭바 높이 + 여유 공간
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* 현재 탭 목록 */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>현재 탭 ({tabs.length}개)</Text>
@@ -339,7 +347,7 @@ const TabManagerScreen = ({ navigation }: any) => {
           transparent={true}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { paddingTop: insets.top }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>새 탭 추가</Text>
                 <TouchableOpacity onPress={() => setShowAddModal(false)}>
@@ -347,7 +355,10 @@ const TabManagerScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView>
+              <ScrollView 
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
                 {/* 카테고리 필터 */}
                 {renderCategoryFilter()}
 
@@ -399,7 +410,7 @@ const TabManagerScreen = ({ navigation }: any) => {
         </Modal>
       </View>
 
-      {/* CustomAlert - 디버그 정보 추가 */}
+      {/* CustomAlert */}
       <CustomAlert
         visible={alertConfig.visible}
         title={alertConfig.title}
@@ -408,17 +419,10 @@ const TabManagerScreen = ({ navigation }: any) => {
         onRequestClose={hideAlert}
       />
       
-      {/* 디버그: alert 상태 표시 */}
+      {/* 디버그 뷰 - 개발 모드에서만 표시 */}
       {__DEV__ && alertConfig.visible && (
-        <View style={{
-          position: 'absolute',
-          top: 100,
-          left: 20,
-          backgroundColor: 'red',
-          padding: 10,
-          zIndex: 9999
-        }}>
-          <Text style={{ color: 'white' }}>
+        <View style={styles.debugView}>
+          <Text style={styles.debugText}>
             Alert Visible: {alertConfig.visible ? 'true' : 'false'}
           </Text>
         </View>
@@ -437,14 +441,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingBottom: 15, // 하단 패딩만 유지
     borderBottomWidth: 1,
     borderBottomColor: '#333',
-    backgroundColor: '#1A1A1A', // 배경색 추가
+    backgroundColor: '#1A1A1A',
+    // paddingTop은 동적으로 적용됨
   },
   backButton: {
     color: '#FF7F50',
     fontSize: 16,
+    fontWeight: '500',
   },
   title: {
     color: 'white',
@@ -454,11 +460,15 @@ const styles = StyleSheet.create({
   resetButton: {
     color: '#FF4444',
     fontSize: 14,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 10, // 상단 패딩 추가
+  },
+  contentContainer: {
+    paddingTop: 10,
+    // paddingBottom은 동적으로 적용됨
   },
   section: {
     marginTop: 20,
@@ -477,6 +487,8 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#333',
   },
   tabInfo: {
     flexDirection: 'row',
@@ -507,13 +519,16 @@ const styles = StyleSheet.create({
   actionButton: {
     backgroundColor: '#FF7F50',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 6,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionButtonText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   removeButton: {
     backgroundColor: '#FF4444',
@@ -521,34 +536,37 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   addTabButton: {
-    backgroundColor: '#4A2C1A',
+    backgroundColor: '#2A2A2A',
     borderWidth: 2,
     borderColor: '#FF7F50',
     borderStyle: 'dashed',
     padding: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
+    marginTop: 25,
+    marginBottom: 20,
+    minHeight: 60,
+    justifyContent: 'center',
   },
   addTabButtonText: {
     color: '#FF7F50',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#2A2A2A',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '90%',
+    flex: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -566,6 +584,10 @@ const styles = StyleSheet.create({
   modalClose: {
     color: '#A67C61',
     fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalScrollContent: {
+    paddingBottom: 40, // 모달 하단 여백
   },
   templateSection: {
     marginBottom: 20,
@@ -583,9 +605,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     marginHorizontal: 20,
-    marginBottom: 5,
+    marginBottom: 8,
     backgroundColor: '#333',
-    borderRadius: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   templateIcon: {
     fontSize: 24,
@@ -633,44 +657,48 @@ const styles = StyleSheet.create({
   },
   customTabForm: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
   input: {
     backgroundColor: '#333',
     color: 'white',
     padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
+    borderRadius: 10,
+    marginBottom: 12,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   createButton: {
     backgroundColor: '#FF7F50',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
+    minHeight: 50,
+    justifyContent: 'center',
   },
   createButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // 카테고리 필터 스타일 추가
   categoryFilter: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 15,
     marginBottom: 10,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     marginRight: 8,
     backgroundColor: '#333',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'transparent',
+    minHeight: 32,
   },
   categoryButtonActive: {
     backgroundColor: '#FF7F50',
@@ -688,6 +716,19 @@ const styles = StyleSheet.create({
   categoryButtonTextActive: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  debugView: {
+    position: 'absolute',
+    top: 120,
+    left: 20,
+    backgroundColor: 'red',
+    padding: 10,
+    borderRadius: 5,
+    zIndex: 500,
+  },
+  debugText: {
+    color: 'white',
+    fontSize: 12,
   },
 });
 

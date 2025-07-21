@@ -9,6 +9,16 @@ import IntervalSignalScreen from '../screens/IntervalSignalScreen';
 import SportsTimerScreen from '../screens/SportsTimerScreen';
 import CalculatorScreen from '../screens/CalculatorScreen';
 import NotesScreen from '../screens/NotesScreen';
+import FlashlightScreen from '../screens/FlashlightScreen';
+import WeatherScreen from '../screens/WeatherScreen';
+import CalendarScreen from '../screens/CalendarScreen';
+import HabitTrackerScreen from '../screens/HabitTrackerScreen';
+import MeditationTimerScreen from '../screens/MeditationTimerScreen';
+import ExerciseTrackerScreen from '../screens/ExerciseTrackerScreen';
+import MusicPlayerScreen from '../screens/MusicPlayerScreen';
+import MiniGamesScreen from '../screens/MiniGamesScreen';
+import QRScannerScreen from '../screens/QRScannerScreen';
+import UnitConverterScreen from '../screens/UnitConverterScreen';
 
 interface TabContentRendererProps {
   tabs?: TabConfig[];
@@ -95,6 +105,26 @@ const TabContentRenderer: React.FC<TabContentRendererProps> = ({
         FallbackComponent = CalculatorScreen;
       } else if (currentTab.id.includes('notes')) {
         FallbackComponent = NotesScreen;
+      } else if (currentTab.id.includes('flashlight')) {
+        FallbackComponent = FlashlightScreen;
+      } else if (currentTab.id.includes('weather')) {
+        FallbackComponent = WeatherScreen;
+      } else if (currentTab.id.includes('calendar')) {
+        FallbackComponent = CalendarScreen;
+      } else if (currentTab.id.includes('habit')) {
+        FallbackComponent = HabitTrackerScreen;
+      } else if (currentTab.id.includes('meditation')) {
+        FallbackComponent = MeditationTimerScreen;
+      } else if (currentTab.id.includes('exercise')) {
+        FallbackComponent = ExerciseTrackerScreen;
+      } else if (currentTab.id.includes('music')) {
+        FallbackComponent = MusicPlayerScreen;
+      } else if (currentTab.id.includes('games')) {
+        FallbackComponent = MiniGamesScreen;
+      } else if (currentTab.id.includes('qr')) {
+        FallbackComponent = QRScannerScreen;
+      } else if (currentTab.id.includes('converter')) {
+        FallbackComponent = UnitConverterScreen;
       }
       
       if (FallbackComponent) {

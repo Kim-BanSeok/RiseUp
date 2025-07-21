@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomTabBar from '../components/CustomTabBar';
@@ -33,8 +33,8 @@ const MainTabScreen = ({ navigation }: any) => {
   const { tabs, activeTab, setActiveTab, isLoading } = useTab();
   const insets = useSafeAreaInsets();
 
-  // 탭바 높이 계산 (고정값)
-  const TAB_BAR_HEIGHT = 80;
+  // 실제 탭바 높이 정확히 계산
+  const TAB_BAR_HEIGHT = 80 + (Platform.OS === 'ios' ? 20 : 10);
 
   // useMemo로 탭 배열 안정화
   const updatedTabs = useMemo(() => {
@@ -68,7 +68,7 @@ const MainTabScreen = ({ navigation }: any) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* 콘텐츠 영역 - 탭바 높이만큼만 하단 패딩 */}
+      {/* 콘텐츠 영역 - 실제 탭바 높이만큼 하단 패딩 */}
       <View style={[styles.contentContainer, { paddingBottom: TAB_BAR_HEIGHT }]}>
         <TabContentRenderer 
           tabs={updatedTabs} 
@@ -77,7 +77,7 @@ const MainTabScreen = ({ navigation }: any) => {
         />
       </View>
       
-      {/* 탭바 영역 - 하단 SafeArea 적용 */}
+      {/* 탭바 영역 */}
       <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
         <CustomTabBar
           tabs={updatedTabs}
@@ -107,6 +107,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 10000, // 탭바를 최상위로
+    elevation: 10000, // Android용
   },
 });
 

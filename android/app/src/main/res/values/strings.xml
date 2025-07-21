@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">RiseUp</string>
-    <string name="app_description">아침을 깨우는 스마트 알람</string>
+    <string name="app_description">매일 아침을 깨우는 스마트 알람 앱</string>
+    <string name="app_full_name">RiseUp - 스마트 알람</string>
+    <string name="app_version">1.0.0</string>
 </resources>

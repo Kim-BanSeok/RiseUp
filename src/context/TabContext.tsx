@@ -8,6 +8,12 @@ import FlashlightScreen from '../screens/FlashlightScreen';
 import WeatherScreen from '../screens/WeatherScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import HabitTrackerScreen from '../screens/HabitTrackerScreen';
+import MeditationTimerScreen from '../screens/MeditationTimerScreen';
+import ExerciseTrackerScreen from '../screens/ExerciseTrackerScreen';
+import MusicPlayerScreen from '../screens/MusicPlayerScreen';
+import MiniGamesScreen from '../screens/MiniGamesScreen';
+import QRScannerScreen from '../screens/QRScannerScreen';
+import UnitConverterScreen from '../screens/UnitConverterScreen';
 import { View, Text } from 'react-native';
 
 interface TabContextType {
@@ -53,6 +59,18 @@ const getComponentById = (id: string) => {
       return CalendarScreen;
     case 'habit':
       return HabitTrackerScreen;
+    case 'meditation':
+      return MeditationTimerScreen;
+    case 'exercise':
+      return ExerciseTrackerScreen;
+    case 'music':
+      return MusicPlayerScreen;
+    case 'games':
+      return MiniGamesScreen;
+    case 'qr':
+      return QRScannerScreen;
+    case 'converter':
+      return UnitConverterScreen;
     default:
       return null;
   }

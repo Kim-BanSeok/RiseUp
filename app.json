@@ -1,5 +1,8 @@
 {
   "name": "RiseUp",
-  "displayName": "RiseUp - 기상 알람",
-  "description": "매일 아침을 깨우는 스마트 알람 앱"
+  "displayName": "RiseUp - 스마트 알람",
+  "description": "매일 아침을 깨우는 스마트 알람 앱 - 다양한 기능과 함께하는 완벽한 기상 도우미",
+  "version": "1.0.0",
+  "author": "RiseUp Team",
+  "keywords": ["알람", "기상", "타이머", "스톱워치", "세계시계"]
 }

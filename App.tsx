@@ -6,6 +6,7 @@ import SplashScreen from './src/components/SplashScreen';
 import { TimerProvider } from './src/context/TimerContext';
 import { TabProvider } from './src/context/TabContext';
 import { IntervalProvider } from './src/context/IntervalContext';
+import { GameScoreProvider } from './src/context/GameScoreContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import CustomAlert from './src/components/CustomAlert';
 import GlobalAlert from './src/utils/GlobalAlert';
@@ -73,11 +74,13 @@ function App(): React.JSX.Element {
         <TimerProvider>
           <IntervalProvider>
             <TabProvider>
-              {showSplash ? (
-                <SplashScreen onAnimationEnd={handleSplashEnd} />
-              ) : (
-                <AppNavigator />
-              )}
+              <GameScoreProvider>
+                {showSplash ? (
+                  <SplashScreen onAnimationEnd={handleSplashEnd} />
+                ) : (
+                  <AppNavigator />
+                )}
+              </GameScoreProvider>
             </TabProvider>
           </IntervalProvider>
         </TimerProvider>
