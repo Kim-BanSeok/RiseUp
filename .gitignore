@@ -73,3 +73,26 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# 추가 최적화 항목들
+*.log
+.vscode/
+.cursor/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# React Native
+metro-cache/
+.metro-health-check*
+
+# 빌드 파일들
+android/app/build/
+ios/build/
+android/.gradle/
+
+# 캐시 파일들
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.cache/

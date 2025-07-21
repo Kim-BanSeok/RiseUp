@@ -1,17 +1,25 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { TabConfig } from './CustomTabBar';
+import HomeScreen from '../screens/HomeScreen';
+import TimerScreen from '../screens/TimerScreen';
+import StopwatchScreen from '../screens/StopwatchScreen';
+import WorldClockScreen from '../screens/WorldClockScreen';
+import IntervalSignalScreen from '../screens/IntervalSignalScreen';
+import SportsTimerScreen from '../screens/SportsTimerScreen';
+import CalculatorScreen from '../screens/CalculatorScreen';
+import NotesScreen from '../screens/NotesScreen';
 
 interface TabContentRendererProps {
   tabs?: TabConfig[];
   activeTab?: string;
-  navigation?: any; // navigation prop 추가
+  navigation?: any;
 }
 
 const TabContentRenderer: React.FC<TabContentRendererProps> = ({
   tabs = [],
   activeTab = '',
-  navigation, // navigation prop 받기
+  navigation,
 }) => {
   // 디버깅 정보 출력
   console.log(' TabContentRenderer Debug:');
@@ -66,26 +74,34 @@ const TabContentRenderer: React.FC<TabContentRendererProps> = ({
       console.error('❌ 컴포넌트가 null입니다:', currentTab.title);
       
       // 컴포넌트가 null인 경우 기본 컴포넌트로 대체
-      let fallbackComponent = null;
+      let FallbackComponent = null;
+      
+      // 기본 탭들
       if (currentTab.id === 'Alarm') {
-        fallbackComponent = HomeScreen;
+        FallbackComponent = HomeScreen;
       } else if (currentTab.id === 'Timer') {
-        fallbackComponent = TimerScreen;
+        FallbackComponent = TimerScreen;
       } else if (currentTab.id === 'Stopwatch') {
-        fallbackComponent = StopwatchScreen;
+        FallbackComponent = StopwatchScreen;
       } else if (currentTab.id === 'WorldClock') {
-        fallbackComponent = WorldClockScreen;
+        FallbackComponent = WorldClockScreen;
       } else if (currentTab.id === 'IntervalSignal') {
-        fallbackComponent = IntervalSignalScreen;
+        FallbackComponent = IntervalSignalScreen;
       } else if (currentTab.id === 'SportsTimer') {
-        fallbackComponent = SportsTimerScreen;
+        FallbackComponent = SportsTimerScreen;
+      }
+      // 추가된 탭들
+      else if (currentTab.id.includes('calculator')) {
+        FallbackComponent = CalculatorScreen;
+      } else if (currentTab.id.includes('notes')) {
+        FallbackComponent = NotesScreen;
       }
       
-      if (fallbackComponent) {
-        console.log('✅ 대체 컴포넌트 사용:', fallbackComponent.name);
+      if (FallbackComponent) {
+        console.log('✅ 대체 컴포넌트 사용:', FallbackComponent.name);
         return (
           <View style={{ flex: 1 }}>
-            <fallbackComponent navigation={navigation} />
+            <FallbackComponent navigation={navigation} />
           </View>
         );
       }

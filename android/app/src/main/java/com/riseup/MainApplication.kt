@@ -18,6 +18,8 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // 커스텀 알람 모듈 추가
               add(AlarmPackage())
+              // 손전등 패키지 추가
+              add(FlashlightPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
@@ -34,5 +36,6 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
+    // SoLoader와 ReactNativeFlipper는 새로운 React Native에서 제거됨
   }
 }

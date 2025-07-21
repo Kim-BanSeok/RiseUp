@@ -16,6 +16,8 @@ import { DEFAULT_TABS } from '../navigation/TabConfig';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import { TAB_TEMPLATES, TabTemplate, TEMPLATE_CATEGORIES } from '../data/TabTemplates';
+import CalculatorScreen from '../screens/CalculatorScreen';
+import NotesScreen from '../screens/NotesScreen';
 
 const TabManagerScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -97,12 +99,32 @@ const TabManagerScreen = ({ navigation }: any) => {
   };
 
   const handleAddTemplate = (template: TabTemplate) => {
+    // 컴포넌트 매핑 함수
+    const getComponentById = (id: string) => {
+      switch (id) {
+        case 'calculator':
+          return CalculatorScreen;
+        case 'notes':
+          return NotesScreen;
+        default:
+          return template.component;
+      }
+    };
+
     const newTab: TabConfig = {
       id: `${template.id}_${Date.now()}`,
       title: template.title,
       icon: template.icon,
-      component: template.component,
+      component: getComponentById(template.id), // 실제 컴포넌트로 매핑
     };
+    
+    console.log('새 탭 추가:', {
+      id: newTab.id,
+      title: newTab.title,
+      hasComponent: !!newTab.component,
+      componentName: newTab.component?.name || 'Unknown'
+    });
+    
     addTab(newTab);
     setShowAddModal(false);
   };
@@ -273,7 +295,7 @@ const TabManagerScreen = ({ navigation }: any) => {
 
   return (
     <>
-      <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* 헤더 */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -418,6 +440,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    backgroundColor: '#1A1A1A', // 배경색 추가
   },
   backButton: {
     color: '#FF7F50',
@@ -435,6 +458,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 10, // 상단 패딩 추가
   },
   section: {
     marginTop: 20,

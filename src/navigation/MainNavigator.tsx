@@ -25,6 +25,7 @@ import TimerHistoryScreen from '../screens/TimerHistoryScreen';
 import TimerCategoriesScreen from '../screens/TimerCategoriesScreen';
 import IntervalStatsScreen from '../screens/IntervalStatsScreen';
 import IntervalBackupScreen from '../screens/IntervalBackupScreen';
+import AddCustomSportScreen from '../screens/AddCustomSportScreen';
 
 const Stack = createStackNavigator();
 
@@ -129,6 +130,7 @@ const MainNavigator = () => {
       <Stack.Screen name="TimerCategories" component={TimerCategoriesScreen} />
       <Stack.Screen name="IntervalStats" component={IntervalStatsScreen} />
       <Stack.Screen name="IntervalBackup" component={IntervalBackupScreen} />
+      <Stack.Screen name="AddCustomSport" component={AddCustomSportScreen} />
     </Stack.Navigator>
   );
 };

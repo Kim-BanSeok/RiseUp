@@ -1,5 +1,10 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import CalculatorScreen from '../screens/CalculatorScreen';
+import NotesScreen from '../screens/NotesScreen';
+import FlashlightScreen from '../screens/FlashlightScreen';
+import WeatherScreen from '../screens/WeatherScreen';
+import CalendarScreen from '../screens/CalendarScreen';
 
 export interface TabTemplate {
   id: string;
@@ -41,9 +46,9 @@ export const TAB_TEMPLATES: TabTemplate[] = [
   {
     id: 'calculator',
     title: '계산기',
-    icon: '🧮',
+    icon: '🔢',
     description: '간단한 계산 기능',
-    component: createDevelopmentScreen('계산기'),
+    component: CalculatorScreen,
     category: 'utility'
   },
   {
@@ -51,7 +56,15 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '날씨',
     icon: '🌤️',
     description: '현재 날씨 정보',
-    component: createDevelopmentScreen('날씨'),
+    component: WeatherScreen,
+    category: 'utility'
+  },
+  {
+    id: 'calendar',
+    title: '캘린더',
+    icon: '📅',
+    description: '일정 관리 및 캘린더',
+    component: CalendarScreen,
     category: 'utility'
   },
   {
@@ -59,7 +72,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '손전등',
     icon: '🔦',
     description: '화면 밝기 조절',
-    component: createDevelopmentScreen('손전등'),
+    component: FlashlightScreen, // 실제 컴포넌트로 변경
     category: 'utility'
   },
   
@@ -69,7 +82,7 @@ export const TAB_TEMPLATES: TabTemplate[] = [
     title: '메모',
     icon: '📝',
     description: '빠른 메모 작성',
-    component: createDevelopmentScreen('메모'),
+    component: NotesScreen, // 실제 컴포넌트로 변경
     category: 'productivity'
   },
   {
@@ -155,5 +168,5 @@ export const TEMPLATE_CATEGORIES = [
   { id: 'productivity', name: '생산성', icon: '📊' },
   { id: 'health', name: '건강', icon: '💚' },
   { id: 'entertainment', name: '엔터테인먼트', icon: '🎭' },
-  { id: 'tools', name: '도구', icon: '��️' },
+  { id: 'tools', name: '도구', icon: '️' },
 ] as const; 

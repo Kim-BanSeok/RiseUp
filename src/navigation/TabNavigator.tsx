@@ -10,6 +10,7 @@ import AddTimerScreen from '../screens/AddTimerScreen';
 import WorldClockScreen from '../screens/WorldClockScreen';
 import IntervalSignalScreen from '../screens/IntervalSignalScreen';
 import SportsTimerScreen from '../screens/SportsTimerScreen';
+import AddCustomSportScreen from '../screens/AddCustomSportScreen';
 
 // 알람 스택 타입 정의
 export type AlarmStackParamList = {
@@ -33,9 +34,16 @@ export type TabParamList = {
   SportsTimer: undefined;
 };
 
+// 스포츠 타이머 스택 타입 정의
+export type SportsTimerStackParamList = {
+  SportsTimerHome: undefined;
+  AddCustomSport: undefined;
+};
+
 const Tab = createBottomTabNavigator<TabParamList>();
 const AlarmStack = createStackNavigator<AlarmStackParamList>();
 const TimerStack = createStackNavigator<TimerStackParamList>();
+const SportsTimerStack = createStackNavigator<SportsTimerStackParamList>();
 
 // 알람 스택 네비게이터
 const AlarmStackNavigator = () => {
@@ -90,6 +98,34 @@ const TimerStackNavigator = () => {
         options={{ title: '타이머 추가' }}
       />
     </TimerStack.Navigator>
+  );
+};
+
+// 스포츠 타이머 스택 네비게이터
+const SportsTimerStackNavigator = () => {
+  return (
+    <SportsTimerStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#2D1B14',
+        },
+        headerTintColor: '#FFD4B3',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <SportsTimerStack.Screen 
+        name="SportsTimerHome" 
+        component={SportsTimerScreen}
+        options={{ title: '스포츠 타이머' }}
+      />
+      <SportsTimerStack.Screen 
+        name="AddCustomSport" 
+        component={AddCustomSportScreen}
+        options={{ title: '커스텀 스포츠 추가' }}
+      />
+    </SportsTimerStack.Navigator>
   );
 };
 
@@ -178,7 +214,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name="SportsTimer"
-        component={SportsTimerScreen}
+        component={SportsTimerStackNavigator}
         options={{
           title: '스포츠',
           tabBarIcon: ({ color, size }) => (
