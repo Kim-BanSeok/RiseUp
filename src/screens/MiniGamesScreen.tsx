@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,11 +17,10 @@ import MathGame from '../components/games/MathGame';
 import RPSGame from '../components/games/RPSGame';
 import MukjjippaGame from '../components/games/MukjjippaGame';
 
-const { width: screenWidth } = Dimensions.get('window');
-
 const MiniGamesScreen = () => {
   const insets = useSafeAreaInsets();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedScoreFilter, setSelectedScoreFilter] = useState<string>('all');
   const { gameScores, addScore } = useGameScore();
 
   const games = [
@@ -105,6 +103,20 @@ const MiniGamesScreen = () => {
     setSelectedGame(null);
   };
 
+  // 점수 필터링
+  const getFilteredScores = () => {
+    if (selectedScoreFilter === 'all') {
+      return gameScores;
+    }
+    return gameScores.filter(score => score.game === selectedScoreFilter);
+  };
+
+  // 게임별 고유 목록 가져오기
+  const getUniqueGames = () => {
+    const uniqueGames = [...new Set(gameScores.map(score => score.game))];
+    return uniqueGames.sort();
+  };
+
   // 선택된 게임 렌더링
   const renderSelectedGame = () => {
     if (!selectedGame) return null;
@@ -159,8 +171,50 @@ const MiniGamesScreen = () => {
             <View style={styles.scoresSectionHeader}>
               <Text style={styles.scoresTitle}>🏆 최근 점수</Text>
               <Text style={styles.scoresTotalCount}>
-                총 {gameScores.length}개
+                총 {getFilteredScores().length}개
               </Text>
+            </View>
+
+            {/* 점수 필터 버튼들 */}
+            <View style={styles.filterContainer}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterScrollView}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton, 
+                    selectedScoreFilter === 'all' && styles.filterButtonActive
+                  ]}
+                  onPress={() => setSelectedScoreFilter('all')}
+                >
+                  <Text style={[
+                    styles.filterButtonText,
+                    selectedScoreFilter === 'all' && styles.filterButtonTextActive
+                  ]}>
+                    전체
+                  </Text>
+                </TouchableOpacity>
+                
+                {getUniqueGames().map((gameName) => (
+                  <TouchableOpacity
+                    key={gameName}
+                    style={[
+                      styles.filterButton,
+                      selectedScoreFilter === gameName && styles.filterButtonActive
+                    ]}
+                    onPress={() => setSelectedScoreFilter(gameName)}
+                  >
+                    <Text style={[
+                      styles.filterButtonText,
+                      selectedScoreFilter === gameName && styles.filterButtonTextActive
+                    ]}>
+                      {gameName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
             
             <ScrollView 
@@ -168,7 +222,7 @@ const MiniGamesScreen = () => {
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
             >
-              {gameScores.map((score, index) => (
+              {getFilteredScores().map((score, index) => (
                 <View key={`${score.date}-${index}`} style={styles.scoreItem}>
                   <View style={styles.scoreMainInfo}>
                     <Text style={styles.scoreName}>{score.game}</Text>
@@ -235,7 +289,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   gameCard: {
-    width: (screenWidth - 55) / 2,
+    width: 150, // 고정 너비 값
     borderRadius: 12,
     padding: 20,
     marginBottom: 15,
@@ -360,6 +414,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontStyle: 'italic',
+  },
+  filterContainer: {
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  filterScrollView: {
+    flexGrow: 0,
+  },
+  filterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    backgroundColor: '#333',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  filterButtonActive: {
+    backgroundColor: '#FFD700',
+    borderColor: '#FFD700',
+  },
+  filterButtonText: {
+    fontSize: 12,
+    color: '#e0e0e0',
+    fontWeight: '500',
+  },
+  filterButtonTextActive: {
+    color: '#000',
+    fontWeight: 'bold',
   },
 });
 

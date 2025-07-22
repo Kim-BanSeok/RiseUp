@@ -1,16 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  ScrollView,
 } from 'react-native';
-
-interface MathGameProps {
-  onExit: () => void;
-  onScore: (game: string, score: number) => void;
-}
+import { BaseGameProps } from '../../types/gameTypes';
+import { gameStyles, gameColors } from '../../styles/gameStyles';
+import { useGameState } from '../../hooks/useGameState';
+import { useGameTimer } from '../../hooks/useGameTimer';
+import GameContainer from '../common/GameContainer';
+import GameStats from '../common/GameStats';
+import GameInstruction from '../common/GameInstruction';
+import GameButtons from '../common/GameButtons';
+import GameResultComponent from '../common/GameResult';
 
 interface MathProblem {
   num1: number;
@@ -25,36 +27,48 @@ interface MathGameState {
   userAnswer: string;
   score: number;
   streak: number;
-  timeLeft: number;
   gameOver: boolean;
   difficulty: number;
   totalProblems: number;
   correctAnswers: number;
+  timeLeft: number;
+  attempts: number;
 }
 
-const MathGame: React.FC<MathGameProps> = ({ onExit, onScore }) => {
-  const [mathGame, setMathGame] = useState<MathGameState>({
+const MathGame: React.FC<BaseGameProps> = ({ onExit, onScore }) => {
+  const initialState: MathGameState = {
     problem: null,
     userAnswer: '',
     score: 0,
     streak: 0,
-    timeLeft: 10,
     gameOver: false,
     difficulty: 1,
     totalProblems: 0,
-    correctAnswers: 0
+    correctAnswers: 0,
+    timeLeft: 10,
+    attempts: 0
+  };
+
+  const { gameState, updateGameState, resetGame } = useGameState({
+    initialState,
+    onGameEnd: (finalState) => {
+      if (finalState.score > 0) {
+        onScore('암산', finalState.score);
+      }
+    }
   });
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 컴포넌트 언마운트 시 타이머 정리
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
+  const { timeLeft, start: startTimer, pause: pauseTimer, reset: resetTimer } = useGameTimer({
+    initialTime: 10,
+    onTimeUp: () => {
+      console.log('⏰ [암산] 시간 종료');
+      updateGameState({ 
+        gameOver: true 
+      });
+      onScore('암산', gameState.score);
+    },
+    autoStart: false
+  });
 
   // 수학 문제 생성
   const generateMathProblem = (difficulty: number): MathProblem => {
@@ -108,66 +122,45 @@ const MathGame: React.FC<MathGameProps> = ({ onExit, onScore }) => {
   const startMathGame = () => {
     console.log('➕ [암산] 게임 시작');
     const problem = generateMathProblem(1);
-    setMathGame({
+    updateGameState({
       problem,
       userAnswer: '',
       score: 0,
       streak: 0,
-      timeLeft: 10,
       gameOver: false,
       difficulty: 1,
       totalProblems: 0,
-      correctAnswers: 0
+      correctAnswers: 0,
+      attempts: gameState.attempts + 1
     });
-    startMathTimer();
-  };
-
-  // 암산 게임 타이머 시작
-  const startMathTimer = () => {
-    console.log('⏰ [암산] 타이머 시작');
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    
-    timerRef.current = setInterval(() => {
-      setMathGame(prev => {
-        if (prev.timeLeft <= 1) {
-          console.log('⏰ [암산] 시간 종료');
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-          }
-          onScore('암산', prev.score);
-          return { ...prev, timeLeft: 0, gameOver: true };
-        }
-        return { ...prev, timeLeft: prev.timeLeft - 1 };
-      });
-    }, 1000);
+    resetTimer();
+    startTimer();
   };
 
   // 암산 답안 체크
   const checkMathAnswer = () => {
-    const userAnswer = parseInt(mathGame.userAnswer);
+    const userAnswer = parseInt(gameState.userAnswer);
     console.log('➕ [암산] 답안 체크:', {
       userAnswer,
-      correctAnswer: mathGame.problem?.answer,
-      isCorrect: userAnswer === mathGame.problem?.answer
+      correctAnswer: gameState.problem?.answer,
+      isCorrect: userAnswer === gameState.problem?.answer
     });
     
-    if (isNaN(userAnswer)) return;
+    if (isNaN(userAnswer) || !gameState.problem) return;
 
-    const isCorrect = userAnswer === mathGame.problem?.answer;
-    const newTotalProblems = mathGame.totalProblems + 1;
-    const newCorrectAnswers = mathGame.correctAnswers + (isCorrect ? 1 : 0);
+    const isCorrect = userAnswer === gameState.problem.answer;
+    const newTotalProblems = gameState.totalProblems + 1;
+    const newCorrectAnswers = gameState.correctAnswers + (isCorrect ? 1 : 0);
     
     if (isCorrect) {
-      const newStreak = mathGame.streak + 1;
+      const newStreak = gameState.streak + 1;
       const baseScore = 10;
       const streakBonus = Math.floor(newStreak / 3) * 5; // 3연속마다 5점 보너스
-      const timeBonus = Math.max(mathGame.timeLeft - 5, 0); // 빠르게 풀면 시간 보너스
-      const difficultyBonus = mathGame.difficulty * 2;
+      const timeBonus = Math.max(timeLeft - 5, 0); // 빠르게 풀면 시간 보너스
+      const difficultyBonus = gameState.difficulty * 2;
       const totalScore = baseScore + streakBonus + timeBonus + difficultyBonus;
       
-      const newScore = mathGame.score + totalScore;
+      const newScore = gameState.score + totalScore;
       const newDifficulty = Math.min(Math.floor(newScore / 100) + 1, 5); // 100점마다 난이도 증가
       const newProblem = generateMathProblem(newDifficulty);
       
@@ -182,299 +175,226 @@ const MathGame: React.FC<MathGameProps> = ({ onExit, onScore }) => {
         newDifficulty
       });
       
-      setMathGame(prev => ({
-        ...prev,
+      updateGameState({
         problem: newProblem,
         userAnswer: '',
         score: newScore,
         streak: newStreak,
-        timeLeft: Math.max(10 - Math.floor(newDifficulty / 2), 5), // 난이도에 따라 시간 단축
         difficulty: newDifficulty,
         totalProblems: newTotalProblems,
         correctAnswers: newCorrectAnswers
-      }));
+      });
+      
+      // 시간 리셋
+      resetTimer();
+      startTimer();
     } else {
       console.log('➕ [암산] 틀림! 연속 점수 리셋');
       // 틀렸을 때 - 연속 점수는 리셋되지만 게임은 계속
-      const newProblem = generateMathProblem(mathGame.difficulty);
-      setMathGame(prev => ({
-        ...prev,
+      const newProblem = generateMathProblem(gameState.difficulty);
+      updateGameState({
         problem: newProblem,
         userAnswer: '',
         streak: 0,
-        timeLeft: Math.max(10 - Math.floor(prev.difficulty / 2), 5),
         totalProblems: newTotalProblems,
         correctAnswers: newCorrectAnswers
-      }));
+      });
+      
+      // 시간 리셋
+      resetTimer();
+      startTimer();
     }
+  };
+
+  // 숫자 입력 처리
+  const handleNumberInput = (digit: string) => {
+    if (gameState.userAnswer.length >= 4) return; // 최대 4자리
+    updateGameState({
+      userAnswer: gameState.userAnswer + digit
+    });
+  };
+
+  // 백스페이스
+  const handleNumberBackspace = () => {
+    updateGameState({
+      userAnswer: gameState.userAnswer.slice(0, -1)
+    });
+  };
+
+  // 입력 초기화
+  const clearNumberInput = () => {
+    updateGameState({ userAnswer: '' });
   };
 
   // 게임 재시작
   const restartGame = () => {
     console.log('➕ [암산] 게임 재시작');
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    pauseTimer();
+    resetGame({
+      attempts: gameState.attempts
+    });
+  };
+
+  // 새 게임 시작
+  const startNewGame = () => {
+    pauseTimer();
     startMathGame();
   };
 
+  // 게임 통계 데이터
+  const getGameStats = () => {
+    const accuracy = gameState.totalProblems > 0 ? 
+      Math.round((gameState.correctAnswers / gameState.totalProblems) * 100) : 0;
+    
+    return [
+      { label: '점수', value: gameState.score },
+      { label: '연속', value: gameState.streak },
+      { label: '시간', value: `${timeLeft}s` },
+      { label: '난이도', value: gameState.difficulty },
+      { label: '정답률', value: `${accuracy}%` }
+    ];
+  };
+
+  // 게임 인스트럭션 텍스트
+  const getInstructionText = () => {
+    if (gameState.gameOver) {
+      const accuracy = gameState.totalProblems > 0 ? 
+        Math.round((gameState.correctAnswers / gameState.totalProblems) * 100) : 0;
+      return `🎯 게임 종료! 정답률: ${accuracy}%`;
+    } else if (!gameState.problem) {
+      return '➕ 암산 게임을 시작하세요!';
+    } else {
+      return `⏰ ${timeLeft}초 남음! 빠르게 계산하세요!`;
+    }
+  };
+
+  // 게임 버튼 설정
+  const getGameButtons = () => {
+    const buttons = [];
+    
+    if (gameState.gameOver) {
+      buttons.push({
+        text: '다시 시작',
+        onPress: startNewGame,
+        style: 'primary' as const
+      });
+      buttons.push({
+        text: '전체 재시작',
+        onPress: restartGame,
+        style: 'secondary' as const
+      });
+    } else if (!gameState.problem) {
+      buttons.push({
+        text: '시작하기',
+        onPress: startNewGame,
+        style: 'primary' as const
+      });
+    }
+    
+    buttons.push({
+      text: '나가기',
+      onPress: onExit,
+      style: 'secondary' as const
+    });
+    
+    return buttons;
+  };
+
   return (
-    <ScrollView 
-      style={styles.gameContainer}
-      contentContainerStyle={styles.gameScrollContent}
-      showsVerticalScrollIndicator={true}
-    >
-      <Text style={styles.gameTitle}>➕ 암산 게임</Text>
+    <GameContainer title="➕ 암산 게임">
+      <GameStats stats={getGameStats()} />
       
-      {/* 게임 상태 정보 */}
-      <View style={styles.mathStats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>점수</Text>
-          <Text style={styles.statValue}>{mathGame.score}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>연속</Text>
-          <Text style={styles.statValue}>{mathGame.streak}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>시간</Text>
-          <Text style={[styles.statValue, styles.timerText]}>{mathGame.timeLeft}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>난이도</Text>
-          <Text style={styles.statValue}>{mathGame.difficulty}</Text>
-        </View>
-      </View>
+      <GameInstruction 
+        text={getInstructionText()} 
+        gameColor={gameColors.math} 
+      />
 
-      {!mathGame.gameOver ? (
-        <>
-          {/* 수학 문제 */}
-          <View style={styles.mathProblem}>
-            <Text style={styles.problemText}>
-              {mathGame.problem?.display}
-            </Text>
-          </View>
-
-          {/* 숫자 입력 패드 */}
-          <View style={styles.numberPad}>
-            {/* 답안 표시 */}
-            <Text style={styles.answerDisplay}>
-              {mathGame.userAnswer || '답을 입력하세요'}
-            </Text>
-            
-            {/* 숫자 버튼들 */}
-            <View style={styles.numberButtons}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                <TouchableOpacity
-                  key={num}
-                  style={styles.numberButton}
-                  onPress={() => setMathGame(prev => ({
-                    ...prev,
-                    userAnswer: prev.userAnswer + num.toString()
-                  }))}
-                >
-                  <Text style={styles.numberButtonText}>{num}</Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={styles.numberButton}
-                onPress={() => setMathGame(prev => ({
-                  ...prev,
-                  userAnswer: prev.userAnswer.slice(0, -1)
-                }))}
-              >
-                <Text style={styles.numberButtonText}>⌫</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.numberButton}
-                onPress={() => setMathGame(prev => ({
-                  ...prev,
-                  userAnswer: prev.userAnswer + '0'
-                }))}
-              >
-                <Text style={styles.numberButtonText}>0</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.numberButton, styles.submitButton]}
-                onPress={checkMathAnswer}
-                disabled={!mathGame.userAnswer}
-              >
-                <Text style={styles.numberButtonText}>✓</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </>
-      ) : (
-        <View style={styles.mathGameOver}>
-          <Text style={styles.gameOverTitle}>게임 종료!</Text>
-          <Text style={styles.finalScore}>최종 점수: {mathGame.score}점</Text>
-          <Text style={styles.accuracy}>
-            정확도: {mathGame.totalProblems > 0 ? 
-              Math.round((mathGame.correctAnswers / mathGame.totalProblems) * 100) : 0}%
-          </Text>
-          <Text style={styles.problemsSolved}>
-            해결한 문제: {mathGame.correctAnswers} / {mathGame.totalProblems}
+      {/* 문제 표시 */}
+      {gameState.problem && !gameState.gameOver && (
+        <View style={gameStyles.inputDisplay}>
+          <Text style={[gameStyles.inputText, { fontSize: 24, color: gameColors.math }]}>
+            {gameState.problem.display}
           </Text>
         </View>
       )}
 
-      <View style={styles.gameButtons}>
-        {mathGame.gameOver && (
-          <TouchableOpacity style={styles.restartButton} onPress={restartGame}>
-            <Text style={styles.buttonText}>다시 시작</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.exitButton} onPress={onExit}>
-          <Text style={styles.buttonText}>나가기</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      {/* 답안 입력 */}
+      {!gameState.gameOver && gameState.problem && (
+        <>
+          <View style={gameStyles.inputDisplay}>
+            <Text style={gameStyles.inputText}>
+              {gameState.userAnswer || '답을 입력하세요'}
+            </Text>
+          </View>
+
+          {/* 숫자 패드 */}
+          <View style={gameStyles.numberPad}>
+            <View style={gameStyles.numberButtons}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                <TouchableOpacity
+                  key={num}
+                  style={gameStyles.numberButton}
+                  onPress={() => handleNumberInput(num.toString())}
+                >
+                  <Text style={gameStyles.numberButtonText}>{num}</Text>
+                </TouchableOpacity>
+              ))}
+              
+              <TouchableOpacity
+                style={gameStyles.numberButton}
+                onPress={handleNumberBackspace}
+              >
+                <Text style={gameStyles.numberButtonText}>⌫</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={gameStyles.numberButton}
+                onPress={() => handleNumberInput('0')}
+              >
+                <Text style={gameStyles.numberButtonText}>0</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[gameStyles.numberButton, { backgroundColor: gameColors.math }]}
+                onPress={checkMathAnswer}
+                disabled={!gameState.userAnswer}
+              >
+                <Text style={gameStyles.numberButtonText}>✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* 액션 버튼들 */}
+          <View style={gameStyles.gameButtons}>
+            <TouchableOpacity
+              style={gameStyles.secondaryButton}
+              onPress={clearNumberInput}
+            >
+              <Text style={gameStyles.buttonText}>지우기</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {gameState.gameOver && (
+        <GameResultComponent
+          result={{
+            score: gameState.score,
+            message: `${gameState.totalProblems}문제 중 ${gameState.correctAnswers}문제 정답!`,
+            isWin: gameState.score >= 100
+          }}
+          gameColor={gameColors.math}
+          additionalInfo={[
+            { label: '최대 연속', value: gameState.streak.toString() },
+            { label: '최고 난이도', value: gameState.difficulty.toString() },
+            { label: '정답률', value: `${Math.round((gameState.correctAnswers / Math.max(gameState.totalProblems, 1)) * 100)}%` }
+          ]}
+        />
+      )}
+
+      <GameButtons buttons={getGameButtons()} />
+    </GameContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  gameContainer: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-    padding: 20,
-  },
-  gameScrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 150,
-  },
-  gameTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#e0e0e0',
-    marginBottom: 20,
-  },
-  mathStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 30,
-    paddingHorizontal: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#a0a0a0',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#96CEB4',
-  },
-  timerText: {
-    color: '#FF6B6B',
-  },
-  mathProblem: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 30,
-    marginBottom: 30,
-    alignItems: 'center',
-  },
-  problemText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#e0e0e0',
-    textAlign: 'center',
-  },
-  numberPad: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  answerDisplay: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    marginBottom: 20,
-    fontSize: 24,
-    color: '#96CEB4',
-    textAlign: 'center',
-    minWidth: 200,
-    borderWidth: 2,
-    borderColor: '#96CEB4',
-  },
-  numberButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 240,
-    justifyContent: 'space-between',
-  },
-  numberButton: {
-    width: 70,
-    height: 50,
-    backgroundColor: '#333',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  submitButton: {
-    backgroundColor: '#96CEB4',
-  },
-  numberButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  mathGameOver: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  gameOverTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FF6B6B',
-    marginBottom: 20,
-  },
-  finalScore: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#96CEB4',
-    marginBottom: 10,
-  },
-  accuracy: {
-    fontSize: 18,
-    color: '#e0e0e0',
-    marginBottom: 8,
-  },
-  problemsSolved: {
-    fontSize: 16,
-    color: '#a0a0a0',
-    marginBottom: 20,
-  },
-  gameButtons: {
-    flexDirection: 'row',
-    gap: 15,
-    marginTop: 20,
-  },
-  restartButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  exitButton: {
-    backgroundColor: '#666',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
 
 export default MathGame; 

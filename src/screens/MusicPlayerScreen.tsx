@@ -1,650 +1,425 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   Alert,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Slider from '@react-native-community/slider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Track {
   id: string;
   title: string;
   artist: string;
-  album?: string;
-  duration: number; // 초 단위
-  artwork?: string;
-  url: string;
+  duration: number;
+  rawResourceId?: number;
 }
 
 interface Playlist {
   id: string;
   name: string;
   tracks: Track[];
-  artwork?: string;
 }
-
-// 기본 제공 음악 (알람 사운드 활용)
-const DEFAULT_TRACKS: Track[] = [
-  {
-    id: 'classic',
-    title: '클래식 알람',
-    artist: 'RiseUp',
-    duration: 30,
-    url: 'alarm_classic'
-  },
-  {
-    id: 'gentle',
-    title: '젠틀 멜로디',
-    artist: 'RiseUp',
-    duration: 45,
-    url: 'alarm_gentle'
-  },
-  {
-    id: 'nature',
-    title: '자연의 소리',
-    artist: 'RiseUp',
-    duration: 60,
-    url: 'alarm_nature'
-  },
-  {
-    id: 'loud',
-    title: '파워풀 사운드',
-    artist: 'RiseUp',
-    duration: 35,
-    url: 'alarm_loud'
-  },
-];
 
 const DEFAULT_PLAYLISTS: Playlist[] = [
   {
-    id: 'favorites',
-    name: '즐겨찾기',
-    tracks: [],
+    id: 'classical',
+    name: '클래식',
+    tracks: [
+      {
+        id: 'classic1',
+        title: '캐논 변주곡',
+        artist: '파헬벨',
+        duration: 240,
+        rawResourceId: 2131623936,
+      },
+      {
+        id: 'classic2', 
+        title: '월광 소나타',
+        artist: '베토벤',
+        duration: 180,
+        rawResourceId: 2131623936,
+      }
+    ]
   },
   {
-    id: 'recent',
-    name: '최근 재생',
-    tracks: [],
+    id: 'nature',
+    name: '자연음',
+    tracks: [
+      {
+        id: 'nature1',
+        title: '숲속의 새소리',
+        artist: '자연음',
+        duration: 300,
+        rawResourceId: 2131623939,
+      }
+    ]
   },
   {
-    id: 'default',
-    name: '기본 사운드',
-    tracks: DEFAULT_TRACKS,
-  },
+    id: 'gentle',
+    name: '잔잔한 음악',
+    tracks: [
+      {
+        id: 'gentle1',
+        title: '부드러운 알람',
+        artist: '릴렉스',
+        duration: 120,
+        rawResourceId: 2131623937,
+      }
+    ]
+  }
 ];
 
-const MusicPlayerScreen = () => {
+const MusicPlayerScreen = React.memo(() => {
   const insets = useSafeAreaInsets();
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [playlists, setPlaylists] = useState<Playlist[]>(DEFAULT_PLAYLISTS);
+  const [playlists] = useState<Playlist[]>(DEFAULT_PLAYLISTS);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist>(DEFAULT_PLAYLISTS[2]);
   const [showPlayer, setShowPlayer] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
+  const [repeatMode, setRepeatMode] = useState<'off' | 'track' | 'queue'>('off');
   const [shuffleMode, setShuffleMode] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleTrackEnd = useCallback(() => {
-    if (repeatMode === 'one') {
-      setCurrentTime(0);
-      return;
+  const playTrack = useCallback(async (track: Track) => {
+    try {
+      setIsLoading(true);
+      setCurrentTrack(track);
+      setShowPlayer(true);
+      setIsPlaying(true);
+      console.log('재생 중:', track.title);
+      Alert.alert('재생 시작', `${track.title} - ${track.artist}`);
+    } catch (error) {
+      console.error('재생 실패:', error);
+      Alert.alert('재생 오류', '음악을 재생할 수 없습니다.');
+    } finally {
+      setIsLoading(false);
     }
+  }, []);
+
+  const togglePlayback = useCallback(async () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      console.log('일시정지');
+    } else {
+      setIsPlaying(true);
+      console.log('재생');
+    }
+  }, [isPlaying]);
+
+  const skipToNext = useCallback(async () => {
+    if (!currentTrack || !selectedPlaylist) return;
     
-    const currentIndex = selectedPlaylist.tracks.findIndex(t => t.id === currentTrack?.id);
-    if (currentIndex !== -1) {
-      if (repeatMode === 'all' || currentIndex < selectedPlaylist.tracks.length - 1) {
-        const nextIndex = (currentIndex + 1) % selectedPlaylist.tracks.length;
-        playTrack(selectedPlaylist.tracks[nextIndex]);
-      } else {
-        setIsPlaying(false);
-        setCurrentTime(0);
-      }
-    }
-  }, [repeatMode, selectedPlaylist.tracks, currentTrack?.id]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying && currentTrack) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= currentTrack.duration) {
-            handleTrackEnd();
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTrack, handleTrackEnd]);
-
-  const playTrack = (track: Track) => {
-    setCurrentTrack(track);
-    setCurrentTime(0);
-    setIsPlaying(true);
-    setShowPlayer(true);
+    const currentIndex = selectedPlaylist.tracks.findIndex(track => track.id === currentTrack.id);
+    const nextIndex = (currentIndex + 1) % selectedPlaylist.tracks.length;
+    const nextTrack = selectedPlaylist.tracks[nextIndex];
     
-    // TODO: 실제 음악 재생 구현
-    console.log('재생 중:', track.title);
-  };
+    await playTrack(nextTrack);
+  }, [currentTrack, selectedPlaylist, playTrack]);
 
-  const pauseResume = () => {
-    setIsPlaying(!isPlaying);
-    // TODO: 실제 재생/일시정지 구현
-  };
-
-  const skipNext = () => {
-    if (!currentTrack) return;
+  const skipToPrevious = useCallback(async () => {
+    if (!currentTrack || !selectedPlaylist) return;
     
-    const currentIndex = selectedPlaylist.tracks.findIndex(t => t.id === currentTrack.id);
-    if (currentIndex !== -1 && currentIndex < selectedPlaylist.tracks.length - 1) {
-      playTrack(selectedPlaylist.tracks[currentIndex + 1]);
-    }
-  };
-
-  const skipPrevious = () => {
-    if (!currentTrack) return;
+    const currentIndex = selectedPlaylist.tracks.findIndex(track => track.id === currentTrack.id);
+    const prevIndex = currentIndex === 0 ? selectedPlaylist.tracks.length - 1 : currentIndex - 1;
+    const prevTrack = selectedPlaylist.tracks[prevIndex];
     
-    if (currentTime > 3) {
-      setCurrentTime(0);
-      return;
-    }
-    
-    const currentIndex = selectedPlaylist.tracks.findIndex(t => t.id === currentTrack.id);
-    if (currentIndex > 0) {
-      playTrack(selectedPlaylist.tracks[currentIndex - 1]);
-    }
-  };
+    await playTrack(prevTrack);
+  }, [currentTrack, selectedPlaylist, playTrack]);
 
-  const formatTime = (seconds: number) => {
+  const toggleRepeatMode = useCallback(() => {
+    const modes: Array<'off' | 'track' | 'queue'> = ['off', 'track', 'queue'];
+    const currentIndex = modes.indexOf(repeatMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setRepeatMode(modes[nextIndex]);
+  }, [repeatMode]);
+
+  const toggleShuffleMode = useCallback(() => {
+    setShuffleMode(prev => !prev);
+  }, []);
+
+  const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const toggleRepeatMode = () => {
-    const modes: Array<'none' | 'one' | 'all'> = ['none', 'one', 'all'];
-    const currentIndex = modes.indexOf(repeatMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    setRepeatMode(modes[nextIndex]);
-  };
-
-  const getRepeatIcon = () => {
-    switch (repeatMode) {
-      case 'none': return '🔁';
-      case 'one': return '🔂';
-      case 'all': return '🔁';
-      default: return '🔁';
-    }
-  };
-
-  const renderTrackItem = (track: Track, _index: number) => (
+  const renderTrackItem = useCallback(({ item }: { item: Track }) => (
     <TouchableOpacity
-      key={track.id}
-      style={[
-        styles.trackItem,
-        currentTrack?.id === track.id && styles.currentTrackItem
-      ]}
-      onPress={() => playTrack(track)}
+      style={styles.trackItem}
+      onPress={() => playTrack(item)}
+      disabled={isLoading}
     >
-      <View style={styles.trackArtwork}>
-        <Text style={styles.trackArtworkText}>🎵</Text>
-      </View>
-      
       <View style={styles.trackInfo}>
-        <Text style={[
-          styles.trackTitle,
-          currentTrack?.id === track.id && styles.currentTrackText
-        ]}>
-          {track.title}
-        </Text>
-        <Text style={styles.trackArtist}>{track.artist}</Text>
+        <Text style={styles.trackTitle}>{item.title}</Text>
+        <Text style={styles.trackArtist}>{item.artist}</Text>
       </View>
-      
-      <View style={styles.trackActions}>
-        <Text style={styles.trackDuration}>{formatTime(track.duration)}</Text>
-        {currentTrack?.id === track.id && isPlaying && (
-          <Text style={styles.playingIndicator}>🔊</Text>
+      <View style={styles.trackDuration}>
+        <Text style={styles.durationText}>{formatDuration(item.duration)}</Text>
+        {isLoading && currentTrack?.id === item.id && (
+          <ActivityIndicator size="small" color="#1a73e8" style={styles.loadingIndicator} />
         )}
       </View>
     </TouchableOpacity>
-  );
+  ), [playTrack, isLoading, currentTrack]);
+
+  const renderPlaylistItem = useCallback(({ item }: { item: Playlist }) => (
+    <TouchableOpacity
+      style={[
+        styles.playlistItem,
+        selectedPlaylist.id === item.id && styles.selectedPlaylist
+      ]}
+      onPress={() => setSelectedPlaylist(item)}
+    >
+      <Text style={[
+        styles.playlistName,
+        selectedPlaylist.id === item.id && styles.selectedPlaylistText
+      ]}>
+        {item.name}
+      </Text>
+      <Text style={styles.trackCount}>{item.tracks.length}곡</Text>
+    </TouchableOpacity>
+  ), [selectedPlaylist]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>🎵 음악 플레이어</Text>
-        <TouchableOpacity
-          style={styles.libraryButton}
-          onPress={() => {
-            Alert.alert(
-              '기능 준비 중',
-              '음악 라이브러리 연동 기능을 준비 중입니다.\n현재는 기본 제공 사운드를 사용해주세요.',
-              [{ text: '확인' }]
-            );
-          }}
-        >
-          <Text style={styles.libraryButtonText}>📁 라이브러리</Text>
-        </TouchableOpacity>
       </View>
 
       {/* 플레이리스트 선택 */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.playlistTabs}>
-        {playlists.map((playlist) => (
-          <TouchableOpacity
-            key={playlist.id}
-            style={[
-              styles.playlistTab,
-              selectedPlaylist.id === playlist.id && styles.playlistTabActive
-            ]}
-            onPress={() => setSelectedPlaylist(playlist)}
-          >
-            <Text style={[
-              styles.playlistTabText,
-              selectedPlaylist.id === playlist.id && styles.playlistTabTextActive
-            ]}>
-              {playlist.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.playlistSection}>
+        <Text style={styles.sectionTitle}>플레이리스트</Text>
+        <FlatList
+          data={playlists}
+          renderItem={renderPlaylistItem}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.playlistContainer}
+        />
+      </View>
 
       {/* 트랙 목록 */}
-      <ScrollView style={styles.trackList}>
-        {selectedPlaylist.tracks.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🎵</Text>
-            <Text style={styles.emptyText}>플레이리스트가 비어있습니다</Text>
-            <Text style={styles.emptySubText}>음악을 추가해보세요</Text>
-          </View>
-        ) : (
-          selectedPlaylist.tracks.map(renderTrackItem)
-        )}
-      </ScrollView>
+      <View style={styles.tracksSection}>
+        <Text style={styles.sectionTitle}>트랙 목록</Text>
+        <FlatList
+          data={selectedPlaylist.tracks}
+          renderItem={renderTrackItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.tracksContainer}
+        />
+      </View>
 
       {/* 미니 플레이어 */}
-      {currentTrack && !showPlayer && (
-        <TouchableOpacity
-          style={styles.miniPlayer}
-          onPress={() => setShowPlayer(true)}
-        >
+      {showPlayer && currentTrack && (
+        <View style={styles.miniPlayer}>
           <View style={styles.miniPlayerInfo}>
-            <Text style={styles.miniPlayerTitle}>{currentTrack.title}</Text>
-            <Text style={styles.miniPlayerArtist}>{currentTrack.artist}</Text>
+            <Text style={styles.miniPlayerTitle} numberOfLines={1}>
+              {currentTrack.title}
+            </Text>
+            <Text style={styles.miniPlayerArtist} numberOfLines={1}>
+              {currentTrack.artist}
+            </Text>
           </View>
           
-          <TouchableOpacity onPress={pauseResume}>
-            <Text style={styles.miniPlayerButton}>
-              {isPlaying ? '⏸️' : '▶️'}
-            </Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          <View style={styles.miniPlayerControls}>
+            <TouchableOpacity onPress={skipToPrevious} style={styles.controlButton}>
+              <Text style={styles.controlIcon}>⏮</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={togglePlayback} style={styles.playButton}>
+              <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={skipToNext} style={styles.controlButton}>
+              <Text style={styles.controlIcon}>⏭</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
 
-      {/* 풀 플레이어 모달 */}
-      {showPlayer && currentTrack && (
-        <View style={styles.fullPlayer}>
-          <View style={styles.playerHeader}>
-            <TouchableOpacity onPress={() => setShowPlayer(false)}>
-              <Text style={styles.playerCloseButton}>▼</Text>
-            </TouchableOpacity>
-            <Text style={styles.playerTitle}>재생 중</Text>
-            <View style={{ width: 30 }} />
-          </View>
-
-          <View style={styles.playerContent}>
-            {/* 앨범 아트 */}
-            <View style={styles.albumArt}>
-              <Text style={styles.albumArtText}>🎵</Text>
-            </View>
-
-            {/* 트랙 정보 */}
-            <Text style={styles.playerTrackTitle}>{currentTrack.title}</Text>
-            <Text style={styles.playerTrackArtist}>{currentTrack.artist}</Text>
-
-            {/* 진행 바 */}
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressTime}>{formatTime(currentTime)}</Text>
-              <View style={styles.progressTrack}>
-                <View 
-                  style={[
-                    styles.progressFill,
-                    { width: `${(currentTime / currentTrack.duration) * 100}%` }
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressTime}>{formatTime(currentTrack.duration)}</Text>
-            </View>
-
-            {/* 컨트롤 버튼 */}
-            <View style={styles.playerControls}>
-              <TouchableOpacity onPress={() => setShuffleMode(!shuffleMode)}>
-                <Text style={[styles.controlButton, shuffleMode && styles.controlButtonActive]}>
-                  🔀
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={skipPrevious}>
-                <Text style={styles.controlButton}>⏮️</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.playPauseButton} onPress={pauseResume}>
-                <Text style={styles.playPauseButtonText}>
-                  {isPlaying ? '⏸️' : '▶️'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={skipNext}>
-                <Text style={styles.controlButton}>⏭️</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={toggleRepeatMode}>
-                <Text style={[styles.controlButton, repeatMode !== 'none' && styles.controlButtonActive]}>
-                  {getRepeatIcon()}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {/* 컨트롤 패널 */}
+      {showPlayer && (
+        <View style={styles.controlPanel}>
+          <TouchableOpacity onPress={toggleRepeatMode} style={styles.controlButton}>
+            <Text style={[
+              styles.controlIcon,
+              repeatMode !== 'off' && styles.activeControl
+            ]}>
+              {repeatMode === 'off' ? '🔁' : repeatMode === 'track' ? '🔂' : '🔁'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={toggleShuffleMode} style={styles.controlButton}>
+            <Text style={[
+              styles.controlIcon,
+              shuffleMode && styles.activeControl
+            ]}>
+              🔀
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#1A1A1A',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#e0e0e0',
+    color: '#ffffff',
   },
-  libraryButton: {
-    backgroundColor: '#333',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minHeight: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
+  playlistSection: {
+    paddingVertical: 20,
   },
-  libraryButtonText: {
-    color: '#e0e0e0',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  playlistTabs: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    maxHeight: 60,
-  },
-  playlistTab: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    marginRight: 12,
-    minHeight: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  playlistTabActive: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  playlistTabText: {
-    color: '#a0a0a0',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  playlistTabTextActive: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  trackList: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 50,
-    marginBottom: 15,
-  },
-  emptyText: {
+  sectionTitle: {
     fontSize: 18,
-    color: '#a0a0a0',
-    marginBottom: 5,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 15,
+    paddingHorizontal: 20,
   },
-  emptySubText: {
+  playlistContainer: {
+    paddingHorizontal: 20,
+  },
+  playlistItem: {
+    backgroundColor: '#333',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginRight: 10,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  selectedPlaylist: {
+    backgroundColor: '#1a73e8',
+  },
+  playlistName: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  selectedPlaylistText: {
+    color: '#ffffff',
+  },
+  trackCount: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+  tracksSection: {
+    flex: 1,
+  },
+  tracksContainer: {
+    paddingHorizontal: 20,
   },
   trackItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    minHeight: 64,
-  },
-  currentTrackItem: {
-    backgroundColor: '#2a4a2a',
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  trackArtwork: {
-    width: 40,
-    height: 40,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
     backgroundColor: '#333',
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  trackArtworkText: {
-    fontSize: 16,
+    borderRadius: 10,
+    marginBottom: 8,
   },
   trackInfo: {
     flex: 1,
   },
   trackTitle: {
     fontSize: 16,
-    color: '#e0e0e0',
-    marginBottom: 2,
-    fontWeight: '500',
-  },
-  currentTrackText: {
-    color: '#4CAF50',
     fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
   },
   trackArtist: {
     fontSize: 14,
-    color: '#a0a0a0',
-  },
-  trackActions: {
-    alignItems: 'flex-end',
+    color: '#999',
   },
   trackDuration: {
-    fontSize: 12,
-    color: '#666',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  playingIndicator: {
-    fontSize: 16,
-    marginTop: 4,
+  durationText: {
+    fontSize: 14,
+    color: '#999',
+    marginRight: 10,
+  },
+  loadingIndicator: {
+    marginLeft: 5,
   },
   miniPlayer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#333',
     borderTopWidth: 1,
-    borderTopColor: '#333',
-    minHeight: 60,
+    borderTopColor: '#444',
   },
   miniPlayerInfo: {
     flex: 1,
   },
   miniPlayerTitle: {
-    fontSize: 14,
-    color: '#e0e0e0',
-    marginBottom: 2,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   miniPlayerArtist: {
-    fontSize: 12,
-    color: '#a0a0a0',
+    fontSize: 14,
+    color: '#999',
   },
-  miniPlayerButton: {
-    fontSize: 24,
-    marginLeft: 15,
-    minWidth: 40,
-    textAlign: 'center',
-  },
-  fullPlayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#0a0a0a',
-    zIndex: 800, // 탭바보다 낮게 수정
-  },
-  playerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    paddingTop: 60,
-  },
-  playerCloseButton: {
-    fontSize: 20,
-    color: '#a0a0a0',
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  playerTitle: {
-    fontSize: 16,
-    color: '#e0e0e0',
-    fontWeight: '600',
-  },
-  playerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  albumArt: {
-    width: 250,
-    height: 250,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 40,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  albumArtText: {
-    fontSize: 80,
-  },
-  playerTrackTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#e0e0e0',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  playerTrackArtist: {
-    fontSize: 18,
-    color: '#a0a0a0',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  progressContainer: {
+  miniPlayerControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    marginBottom: 40,
-  },
-  progressTime: {
-    fontSize: 12,
-    color: '#a0a0a0',
-    width: 40,
-    textAlign: 'center',
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#333',
-    borderRadius: 2,
-    marginHorizontal: 10,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 2,
-  },
-  playerControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
   },
   controlButton: {
-    fontSize: 24,
-    color: '#a0a0a0',
-    minWidth: 40,
-    textAlign: 'center',
-    paddingVertical: 8,
+    padding: 10,
   },
-  controlButtonActive: {
-    color: '#4CAF50',
+  playButton: {
+    padding: 15,
+    backgroundColor: '#1a73e8',
+    borderRadius: 25,
+    marginHorizontal: 10,
   },
-  playPauseButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#4CAF50',
+  controlIcon: {
+    fontSize: 20,
+    color: '#ffffff',
+  },
+  playIcon: {
+    fontSize: 18,
+    color: '#ffffff',
+  },
+  activeControl: {
+    color: '#1a73e8',
+  },
+  controlPanel: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#4CAF50',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  playPauseButtonText: {
-    fontSize: 24,
-    color: 'white',
+    paddingVertical: 10,
+    backgroundColor: '#333',
+    borderTopWidth: 1,
+    borderTopColor: '#444',
   },
 });
+
+MusicPlayerScreen.displayName = 'MusicPlayerScreen';
 
 export default MusicPlayerScreen; 

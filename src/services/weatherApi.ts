@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// 공공데이터포털 기상청 API 설정 (정확한 API 키)
-const KMA_API_KEY = '5AixXeDNsKuyZ6zDiEY2sB5yTjp6RMUt0g%2Bcrj1vwJ8JZDDnkJ31fLeOg2rqahoBsyf1meC4oS2UlV4aggcgyg%3D%3D';
-const KMA_BASE_URL = 'http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
+import { 
+  WEATHER_CONFIG, 
+  WEATHER_CONSTANTS, 
+  validateApiKey, 
+  validateCoordinates 
+} from './weatherConfig';
 
 export interface WeatherData {
   temperature: number;
@@ -110,8 +112,8 @@ class KMAWeatherService {
       console.log('🌤️ 현재 시간 기준 API 호출:', { baseDate, baseTime, location: targetLocation });
       
       // 정확한 API 키와 현재 시간으로 URL 구성
-      const url = `${KMA_BASE_URL}/getUltraSrtNcst?` +
-        `serviceKey=${KMA_API_KEY}&` +
+      const url = `${WEATHER_CONFIG.KMA_BASE_URL}/getUltraSrtNcst?` +
+        `serviceKey=${WEATHER_CONFIG.KMA_API_KEY}&` +
         `pageNo=1&` +
         `numOfRows=1000&` +
         `dataType=JSON&` + // JSON 응답 명시
@@ -301,8 +303,8 @@ class KMAWeatherService {
   async checkApiKeyStatus(): Promise<boolean> {
     try {
       const { baseDate, baseTime } = this.getCurrentTime();
-      const url = `${KMA_BASE_URL}/getUltraSrtNcst?` +
-        `serviceKey=${KMA_API_KEY}&` +
+      const url = `${WEATHER_CONFIG.KMA_BASE_URL}/getUltraSrtNcst?` +
+        `serviceKey=${WEATHER_CONFIG.KMA_API_KEY}&` +
         `pageNo=1&` +
         `numOfRows=1&` +
         `dataType=JSON&` +
@@ -341,11 +343,11 @@ class KMAWeatherService {
       console.log('🌐 네트워크 연결 테스트 중...');
       
       // 간단한 HTTP 요청 테스트
-      const testResponse = await fetch('http://httpbin.org/get');
+      await fetch('http://httpbin.org/get');
       console.log('✅ HTTP 연결 성공');
       
       // HTTPS 요청 테스트
-      const httpsTestResponse = await fetch('https://httpbin.org/get');
+      await fetch('https://httpbin.org/get');
       console.log('✅ HTTPS 연결 성공');
       
       return true;

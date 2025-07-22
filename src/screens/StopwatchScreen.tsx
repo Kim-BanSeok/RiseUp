@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Dimensions,
   Vibration,
   Platform,
 } from 'react-native';
@@ -18,7 +17,7 @@ interface LapTime {
   difference?: number;
 }
 
-const StopwatchScreen = () => {
+const StopwatchScreen = React.memo(() => {
   const insets = useSafeAreaInsets();
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -44,7 +43,7 @@ const StopwatchScreen = () => {
     };
   }, [isRunning]);
 
-  const formatTime = (timeMs: number) => {
+  const formatTime = useCallback((timeMs: number) => {
     const minutes = Math.floor(timeMs / 60000);
     const seconds = Math.floor((timeMs % 60000) / 1000);
     const milliseconds = Math.floor((timeMs % 1000) / 10);
@@ -52,17 +51,17 @@ const StopwatchScreen = () => {
     return `${minutes.toString().padStart(2, '0')}:${seconds
       .toString()
       .padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-  const handleStartStop = () => {
+  const handleStartStop = useCallback(() => {
     if (isRunning) {
       // 진동 피드백
       Vibration.vibrate(50);
     }
     setIsRunning(!isRunning);
-  };
+  }, [isRunning]);
 
-  const handleLapReset = () => {
+  const handleLapReset = useCallback(() => {
     Vibration.vibrate(50);
     
     if (isRunning) {
@@ -79,9 +78,9 @@ const StopwatchScreen = () => {
       setTime(0);
       setLaps([]);
     }
-  };
+  }, [isRunning, time, laps]);
 
-  const getFastestAndSlowest = () => {
+  const getFastestAndSlowest = useCallback(() => {
     if (laps.length < 2) return { fastest: null, slowest: null };
     
     const lapTimes = laps.map(lap => lap.difference || 0).filter(diff => diff > 0);
@@ -89,42 +88,40 @@ const StopwatchScreen = () => {
     const slowest = Math.max(...lapTimes);
     
     return { fastest, slowest };
-  };
+  }, [laps]);
 
-  const renderLapItem = ({ item, index }: { item: LapTime; index: number }) => {
+  // 랩 항목 렌더링 함수 (메모이제이션)
+  const renderLapItem = useCallback(({ item, index }: { item: LapTime; index: number }) => {
     const { fastest, slowest } = getFastestAndSlowest();
-    const isFirst = index === laps.length - 1;
-    const isFastest = item.difference === fastest && fastest !== null;
-    const isSlowest = item.difference === slowest && slowest !== null;
-    
-    let lapStyle = styles.lapItem;
-    let lapTextStyle = styles.lapText;
-    
-    if (isFastest && laps.length > 2) {
-      lapStyle = [styles.lapItem, styles.fastestLap];
-      lapTextStyle = [styles.lapText, styles.fastestText];
-    } else if (isSlowest && laps.length > 2) {
-      lapStyle = [styles.lapItem, styles.slowestLap];
-      lapTextStyle = [styles.lapText, styles.slowestText];
-    } else if (isFirst) {
-      lapStyle = [styles.lapItem, styles.currentLap];
-      lapTextStyle = [styles.lapText, styles.currentText];
-    }
+    const isCurrentFastest = item.difference && item.difference === fastest;
+    const isCurrentSlowest = item.difference && item.difference === slowest;
 
     return (
-      <View style={lapStyle}>
-        <Text style={lapTextStyle}>랩 {item.lapNumber}</Text>
-        <View style={styles.lapTimes}>
-          {item.difference && (
-            <Text style={[lapTextStyle, styles.lapDifference]}>
-              +{formatTime(item.difference)}
-            </Text>
-          )}
-          <Text style={lapTextStyle}>{formatTime(item.time)}</Text>
-        </View>
+      <View style={[
+        styles.lapItem,
+        isCurrentFastest && styles.fastestLap,
+        isCurrentSlowest && styles.slowestLap
+      ]}>
+        <Text style={styles.lapNumber}>랩 {item.lapNumber}</Text>
+        <Text style={styles.lapDifference}>
+          {item.difference ? `+${formatTime(item.difference)}` : '-'}
+        </Text>
+        <Text style={styles.lapTime}>{formatTime(item.time)}</Text>
       </View>
     );
-  };
+  }, [getFastestAndSlowest, formatTime]);
+
+  // 키 추출 함수 (메모이제이션)
+  const keyExtractor = useCallback((item: LapTime) => item.id, []);
+
+  // 메인 시간 표시 (메모이제이션)
+  const formattedTime = React.useMemo(() => formatTime(time), [time, formatTime]);
+
+  // 버튼 텍스트들 (메모이제이션)
+  const buttonTexts = React.useMemo(() => ({
+    startStop: isRunning ? '일시정지' : '시작',
+    lapReset: isRunning ? '랩' : '리셋'
+  }), [isRunning]);
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 80 }]}>
@@ -133,95 +130,63 @@ const StopwatchScreen = () => {
         <Text style={styles.title}>⏱️ 스톱워치</Text>
       </View>
 
-      {/* 메인 타이머 */}
+      {/* 메인 타이머 디스플레이 */}
       <View style={styles.timerContainer}>
-        {/* <Text style={styles.title}>⏱️ 스톱워치</Text> */}
-        <Text style={styles.mainTime}>{formatTime(time)}</Text>
-        <View style={styles.timerCircle}>
-          <View style={styles.innerCircle} />
-        </View>
+        <Text style={styles.timerText}>{formattedTime}</Text>
       </View>
 
-      {/* 랩 타임 리스트 */}
-      <View style={styles.lapsContainer}>
-        {laps.length > 0 && (
-          <FlatList
-            data={[...laps].reverse()}
-            renderItem={renderLapItem}
-            keyExtractor={(item) => item.id}
-            style={styles.lapsList}
-            showsVerticalScrollIndicator={false}
-            inverted
-            contentContainerStyle={{ paddingBottom: 20 }}
-          />
-        )}
-      </View>
-
-      {/* 컨트롤 버튼 */}
+      {/* 컨트롤 버튼들 */}
       <View style={styles.controlsContainer}>
         <TouchableOpacity
-          style={[
-            styles.controlButton,
-            styles.secondaryButton,
-            !isRunning && time > 0 && styles.resetButton,
-          ]}
+          style={[styles.controlButton, styles.lapResetButton]}
           onPress={handleLapReset}
+          disabled={time === 0 && laps.length === 0}
         >
-          <Text style={[
-            styles.controlButtonText,
-            styles.secondaryButtonText,
-            !isRunning && time > 0 && styles.resetButtonText,
-          ]}>
-            {isRunning ? '랩' : time > 0 ? '리셋' : '랩'}
-          </Text>
+          <Text style={styles.controlButtonText}>{buttonTexts.lapReset}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.controlButton,
-            styles.primaryButton,
-            isRunning && styles.stopButton,
+            styles.startStopButton,
+            isRunning && styles.stopButton
           ]}
           onPress={handleStartStop}
         >
           <Text style={[
             styles.controlButtonText,
-            styles.primaryButtonText,
-            isRunning && styles.stopButtonText,
+            isRunning && styles.stopButtonText
           ]}>
-            {isRunning ? '정지' : '시작'}
+            {buttonTexts.startStop}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* 통계 정보 */}
-      {laps.length > 1 && (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>총 랩</Text>
-            <Text style={styles.statValue}>{laps.length}</Text>
+      {/* 랩 타임 목록 */}
+      {laps.length > 0 && (
+        <View style={styles.lapsContainer}>
+          <View style={styles.lapsHeader}>
+            <Text style={styles.lapsTitle}>랩 타임</Text>
+            <Text style={styles.lapsCount}>{laps.length}개</Text>
           </View>
-          {getFastestAndSlowest().fastest && (
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>최고 기록</Text>
-              <Text style={[styles.statValue, styles.fastestText]}>
-                {formatTime(getFastestAndSlowest().fastest!)}
-              </Text>
-            </View>
-          )}
-          {getFastestAndSlowest().slowest && (
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>최저 기록</Text>
-              <Text style={[styles.statValue, styles.slowestText]}>
-                {formatTime(getFastestAndSlowest().slowest!)}
-              </Text>
-            </View>
-          )}
+          
+          <FlatList
+            data={[...laps].reverse()}
+            renderItem={renderLapItem}
+            keyExtractor={keyExtractor}
+            style={styles.lapsList}
+            showsVerticalScrollIndicator={false}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            removeClippedSubviews={true}
+          />
         </View>
       )}
     </View>
   );
-};
+});
+
+StopwatchScreen.displayName = 'StopwatchScreen';
 
 const { width } = Dimensions.get('window');
 

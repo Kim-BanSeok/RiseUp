@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlarmProvider } from './src/context/AlarmContext';
-import SplashScreen from './src/components/SplashScreen';
+import SimpleSplashScreen from './src/components/SimpleSplashScreen';
 import { TimerProvider } from './src/context/TimerContext';
 import { TabProvider } from './src/context/TabContext';
 import { IntervalProvider } from './src/context/IntervalContext';
 import { GameScoreProvider } from './src/context/GameScoreContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import CustomAlert from './src/components/CustomAlert';
 import GlobalAlert from './src/utils/GlobalAlert';
@@ -70,21 +71,23 @@ function App(): React.JSX.Element {
         backgroundColor={showSplash ? "#1a73e8" : "#1A1A1A"} 
       />
       
-      <AlarmProvider>
-        <TimerProvider>
-          <IntervalProvider>
-            <TabProvider>
-              <GameScoreProvider>
-                {showSplash ? (
-                  <SplashScreen onAnimationEnd={handleSplashEnd} />
-                ) : (
-                  <AppNavigator />
-                )}
-              </GameScoreProvider>
-            </TabProvider>
-          </IntervalProvider>
-        </TimerProvider>
-      </AlarmProvider>
+      <ThemeProvider>
+        <AlarmProvider>
+          <TimerProvider>
+            <IntervalProvider>
+              <TabProvider>
+                <GameScoreProvider>
+                  {showSplash ? (
+                    <SimpleSplashScreen onAnimationEnd={handleSplashEnd} />
+                  ) : (
+                    <AppNavigator />
+                  )}
+                </GameScoreProvider>
+              </TabProvider>
+            </IntervalProvider>
+          </TimerProvider>
+        </AlarmProvider>
+      </ThemeProvider>
 
       <CustomAlert
         visible={alertConfig.visible}

@@ -1,13 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   Platform,
-  Dimensions,
   StyleSheet,
-  Animated,
 } from 'react-native';
 
 export interface TabConfig {
@@ -32,15 +30,13 @@ const CustomTabBar: React.FC<CustomTabBarProps> = ({
   activeTab,
   onTabChange,
   onSettingsPress,
-  scrollable = false,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = Dimensions.get('window');
   
-  // 4개씩 보이도록 탭 너비 조정
-  const tabWidth = Math.max(80, Math.min(100, screenWidth / 4));
+  // 고정 탭 너비 사용
+  const tabWidth = 90; // 고정 너비 값
 
-  const renderTabItem = (tab: TabConfig, index: number) => {
+  const renderTabItem = (tab: TabConfig) => {
     const isActive = activeTab === tab.id;
     
     return (
@@ -83,7 +79,7 @@ const CustomTabBar: React.FC<CustomTabBarProps> = ({
         decelerationRate="fast"
       >
         {/* 일반 탭들 */}
-        {tabs.map((tab, index) => renderTabItem(tab, index))}
+        {tabs.map((tab) => renderTabItem(tab))}
         
         {/* 고정된 설정 버튼 (맨 오른쪽) */}
         <TouchableOpacity
