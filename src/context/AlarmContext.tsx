@@ -9,8 +9,6 @@ import {
 } from '../utils/storage';
 import { scheduleAlarm, cancelAlarm } from '../notifications/alarmManager';
 import { PermissionManager } from '../utils/permissions';
-import { Alert, Vibration, Platform, AppState } from 'react-native';
-import { playSound, stopSound } from '../utils/sounds';
 import { BackupData } from '../utils/backup';
 
 export interface Alarm {
@@ -82,6 +80,7 @@ interface AlarmContextType {
   restoreFromBackup: (backupData: BackupData) => Promise<boolean>;
   isLoading: boolean;
   hasNotificationPermission: boolean;
+  setAlarms: React.Dispatch<React.SetStateAction<Alarm[]>>;
 }
 
 const AlarmContext = createContext<AlarmContextType | undefined>(undefined);
@@ -455,6 +454,7 @@ export const AlarmProvider = ({ children }: { children: ReactNode }) => {
     restoreFromBackup, // 복원 함수 추가
     isLoading,
     hasNotificationPermission,
+    setAlarms,
   };
 
   return (

@@ -4,7 +4,6 @@ import {
   Text, 
   StyleSheet, 
   Animated, 
-  Dimensions,
   StatusBar 
 } from 'react-native';
 
@@ -15,7 +14,6 @@ interface SplashScreenProps {
 const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationEnd }) => {
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.5);
-  const { width, height } = Dimensions.get('window');
 
   useEffect(() => {
     // 페이드인 및 스케일 애니메이션

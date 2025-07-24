@@ -123,13 +123,20 @@ class KMAWeatherService {
       
       console.log('📡 수정된 API URL:', url);
       
+      // 타임아웃 설정
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+      
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       console.log('📊 API 응답 상태:', response.status);
 
@@ -354,6 +361,51 @@ class KMAWeatherService {
     } catch (error) {
       console.error('❌ 네트워크 연결 실패:', error);
       return false;
+    }
+  }
+
+  // 단기예보 API 호출
+  async getShortTermForecast(location?: string): Promise<any[]> {
+    try {
+      const targetLocation = location || await this.getStoredLocation();
+      const { baseDate, baseTime } = this.getCurrentTime();
+      
+      console.log('🌤️ 단기예보 API 호출:', { baseDate, baseTime, location: targetLocation });
+      
+      const url = `${WEATHER_CONFIG.KMA_BASE_URL}/getVilageFcst?` +
+        `serviceKey=${WEATHER_CONFIG.KMA_API_KEY}&` +
+        `pageNo=1&` +
+        `numOfRows=1000&` +
+        `dataType=JSON&` +
+        `base_date=${baseDate}&` +
+        `base_time=${baseTime}&` +
+        `nx=55&ny=127`;
+      
+      console.log('📡 단기예보 API URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`단기예보 API 오류: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      const data = JSON.parse(responseText);
+      
+      if (data.response.header.resultCode !== '00') {
+        throw new Error(`단기예보 API 오류: ${data.response.header.resultMsg}`);
+      }
+
+      return data.response.body.items.item;
+    } catch (error) {
+      console.error('❌ 단기예보 데이터 가져오기 실패:', error);
+      throw error;
     }
   }
 

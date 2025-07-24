@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance } from 'react-native';
 
+console.log('=== ThemeContext.tsx loaded ===');
+
 export interface ThemeColors {
   // Background colors
   background: string;
@@ -219,6 +221,7 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  console.log('=== ThemeProvider loaded ===');
   const [themeMode, setThemeMode] = useState<ThemeMode>('auto');
   const [isSystemDark, setIsSystemDark] = useState<boolean>(false);
 

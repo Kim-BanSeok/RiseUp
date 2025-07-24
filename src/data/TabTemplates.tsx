@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import CalculatorScreen from '../screens/CalculatorScreen';
-import NotesScreen from '../screens/NotesScreen';
-import FlashlightScreen from '../screens/FlashlightScreen';
-import WeatherScreen from '../screens/WeatherScreen';
-import CalendarScreen from '../screens/CalendarScreen';
-import MeditationTimerScreen from '../screens/MeditationTimerScreen';
-import ExerciseTrackerScreen from '../screens/ExerciseTrackerScreen';
-import MusicPlayerScreen from '../screens/MusicPlayerScreen';
-import MiniGamesScreen from '../screens/MiniGamesScreen';
-import QRScannerScreen from '../screens/QRScannerScreen';
-import UnitConverterScreen from '../screens/UnitConverterScreen';
+import CalculatorScreen from '../screens/utilities/CalculatorScreen';
+import NotesScreen from '../screens/utilities/NotesScreen';
+import FlashlightScreen from '../screens/utilities/FlashlightScreen';
+import WeatherScreen from '../screens/utilities/WeatherScreen';
+import CalendarScreen from '../screens/utilities/CalendarScreen';
+import MeditationTimerScreen from '../screens/timer/MeditationTimerScreen';
+import ExerciseTrackerScreen from '../screens/sports/ExerciseTrackerScreen';
+import MusicPlayerScreen from '../screens/utilities/MusicPlayerScreen';
+import MiniGamesScreen from '../screens/utilities/MiniGamesScreen';
+import QRScannerScreen from '../screens/utilities/QRScannerScreen';
+import UnitConverterScreen from '../screens/utilities/UnitConverterScreen';
 
 export interface TabTemplate {
   id: string;

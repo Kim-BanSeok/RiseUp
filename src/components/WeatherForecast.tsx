@@ -38,54 +38,81 @@ const WeatherForecast: React.FC<WeatherForecastProps> = ({ visible, onClose }) =
   const loadForecastData = async () => {
     setLoading(true);
     try {
-      // 임시 모의 예보 데이터 (실제로는 단기예보 API 호출)
-      const mockForecast: ForecastData[] = [
-        {
-          date: '07/21',
-          day: '오늘',
-          minTemp: 24,
-          maxTemp: 29,
-          condition: '흐림',
-          icon: '☁️',
-          precipitation: 10,
-        },
-        {
-          date: '07/22',
-          day: '내일',
-          minTemp: 22,
-          maxTemp: 27,
-          condition: '비',
-          icon: '🌧️',
-          precipitation: 60,
-        },
-        {
-          date: '07/23',
-          day: '모레',
-          minTemp: 23,
-          maxTemp: 28,
-          condition: '구름많음',
-          icon: '⛅',
-          precipitation: 20,
-        },
-        {
-          date: '07/24',
-          day: '목',
-          minTemp: 25,
-          maxTemp: 31,
-          condition: '맑음',
-          icon: '☀️',
-          precipitation: 0,
-        },
-        {
-          date: '07/25',
-          day: '금',
-          minTemp: 26,
-          maxTemp: 32,
-          condition: '맑음',
-          icon: '☀️',
-          precipitation: 0,
-        },
-      ];
+      // 실제 오늘 날짜부터 5일간의 예보 데이터 생성
+      const today = new Date();
+      const mockForecast: ForecastData[] = [];
+      
+      const dayNames = ['오늘', '내일', '모레', '목', '금', '토', '일'];
+      
+      for (let i = 0; i < 5; i++) {
+        const forecastDate = new Date(today);
+        forecastDate.setDate(today.getDate() + i);
+        
+        const month = String(forecastDate.getMonth() + 1).padStart(2, '0');
+        const day = String(forecastDate.getDate()).padStart(2, '0');
+        const dateString = `${month}/${day}`;
+        
+        // 계절과 시간에 따른 현실적인 날씨 데이터
+        const currentMonth = today.getMonth() + 1;
+        let baseTemp = 20;
+        let condition = '맑음';
+        let icon = '☀️';
+        let precipitation = 0;
+        
+        // 계절별 온도 조정
+        if (currentMonth >= 3 && currentMonth <= 5) {
+          // 봄
+          baseTemp = 15 + Math.floor(Math.random() * 10);
+        } else if (currentMonth >= 6 && currentMonth <= 8) {
+          // 여름
+          baseTemp = 25 + Math.floor(Math.random() * 8);
+          if (Math.random() < 0.3) {
+            condition = '비';
+            icon = '🌧️';
+            precipitation = 30 + Math.floor(Math.random() * 40);
+          }
+        } else if (currentMonth >= 9 && currentMonth <= 11) {
+          // 가을
+          baseTemp = 15 + Math.floor(Math.random() * 10);
+        } else {
+          // 겨울
+          baseTemp = 0 + Math.floor(Math.random() * 10);
+          if (Math.random() < 0.2) {
+            condition = '눈';
+            icon = '❄️';
+            precipitation = 20 + Math.floor(Math.random() * 30);
+          }
+        }
+        
+        // 날씨 변화 (시간이 지날수록 변화)
+        if (i > 0) {
+          const weatherVariations = [
+            { condition: '맑음', icon: '☀️', precipitation: 0 },
+            { condition: '구름많음', icon: '⛅', precipitation: 10 },
+            { condition: '흐림', icon: '☁️', precipitation: 20 },
+            { condition: '비', icon: '🌧️', precipitation: 40 },
+            { condition: '소나기', icon: '🌦️', precipitation: 30 },
+          ];
+          
+          const variation = weatherVariations[Math.floor(Math.random() * weatherVariations.length)];
+          condition = variation.condition;
+          icon = variation.icon;
+          precipitation = variation.precipitation;
+        }
+        
+        const minTemp = baseTemp - 3;
+        const maxTemp = baseTemp + 5;
+        
+        mockForecast.push({
+          date: dateString,
+          day: dayNames[i],
+          minTemp,
+          maxTemp,
+          condition,
+          icon,
+          precipitation,
+        });
+      }
       
       setForecastData(mockForecast);
     } catch (error) {

@@ -2,18 +2,18 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TabConfig } from '../components/CustomTabBar';
 import { DEFAULT_TABS } from '../navigation/TabConfig';
-import CalculatorScreen from '../screens/CalculatorScreen';
-import NotesScreen from '../screens/NotesScreen';
-import FlashlightScreen from '../screens/FlashlightScreen';
-import WeatherScreen from '../screens/WeatherScreen';
-import CalendarScreen from '../screens/CalendarScreen';
-import HabitTrackerScreen from '../screens/HabitTrackerScreen';
-import MeditationTimerScreen from '../screens/MeditationTimerScreen';
-import ExerciseTrackerScreen from '../screens/ExerciseTrackerScreen';
-import MusicPlayerScreen from '../screens/MusicPlayerScreen';
-import MiniGamesScreen from '../screens/MiniGamesScreen';
-import QRScannerScreen from '../screens/QRScannerScreen';
-import UnitConverterScreen from '../screens/UnitConverterScreen';
+import CalculatorScreen from '../screens/utilities/CalculatorScreen';
+import NotesScreen from '../screens/utilities/NotesScreen';
+import FlashlightScreen from '../screens/utilities/FlashlightScreen';
+import WeatherScreen from '../screens/utilities/WeatherScreen';
+import CalendarScreen from '../screens/utilities/CalendarScreen';
+import HabitTrackerScreen from '../screens/utilities/HabitTrackerScreen';
+import MeditationTimerScreen from '../screens/timer/MeditationTimerScreen';
+import ExerciseTrackerScreen from '../screens/sports/ExerciseTrackerScreen';
+import MusicPlayerScreen from '../screens/utilities/MusicPlayerScreen';
+import MiniGamesScreen from '../screens/utilities/MiniGamesScreen';
+import QRScannerScreen from '../screens/utilities/QRScannerScreen';
+import UnitConverterScreen from '../screens/utilities/UnitConverterScreen';
 import { View, Text } from 'react-native';
 
 interface TabContextType {

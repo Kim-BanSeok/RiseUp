@@ -2,15 +2,15 @@ import React from 'react';
 import { View, Text, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from '../screens/HomeScreen';
-import AddAlarmScreen from '../screens/AddAlarmScreen';
-import StopwatchScreen from '../screens/StopwatchScreen';
-import TimerScreen from '../screens/TimerScreen';
-import AddTimerScreen from '../screens/AddTimerScreen';
-import WorldClockScreen from '../screens/WorldClockScreen';
-import IntervalSignalScreen from '../screens/IntervalSignalScreen';
-import SportsTimerScreen from '../screens/SportsTimerScreen';
-import AddCustomSportScreen from '../screens/AddCustomSportScreen';
+import HomeScreen from '../screens/alarm/HomeScreen';
+import AddAlarmScreen from '../screens/alarm/AddAlarmScreen';
+import StopwatchScreen from '../screens/stopwatch/StopwatchScreen';
+import TimerScreen from '../screens/timer/TimerScreen';
+import AddTimerScreen from '../screens/timer/AddTimerScreen';
+import WorldClockScreen from '../screens/worldclock/WorldClockScreen';
+import IntervalSignalScreen from '../screens/interval/IntervalSignalScreen';
+import SportsTimerScreen from '../screens/sports/SportsTimerScreen';
+import AddCustomSportScreen from '../screens/sports/AddCustomSportScreen';
 
 // 알람 스택 타입 정의
 export type AlarmStackParamList = {

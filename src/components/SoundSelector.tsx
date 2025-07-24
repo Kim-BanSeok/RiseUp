@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import { getAllSounds, SoundOption, playSound, stopSound, getSoundById } from '../utils/sounds';

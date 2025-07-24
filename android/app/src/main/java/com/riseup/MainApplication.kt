@@ -20,6 +20,7 @@ class MainApplication : Application(), ReactApplication {
               add(AlarmPackage())
               // 손전등 패키지 추가
               add(FlashlightPackage())
+              // RNShare는 자동 링크 사용 (TurboModule 지원)
             }
 
         override fun getJSMainModuleName(): String = "index"

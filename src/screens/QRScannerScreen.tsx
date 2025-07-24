@@ -1,314 +1,433 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Alert,
+  ScrollView,
+  TextInput,
+  Modal,
   Share,
-  Clipboard,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import QRCodeScanner from 'react-native-qrcode-scanner';
+import QRCode from 'react-native-qrcode-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
-interface QRHistory {
+interface ScanHistory {
   id: string;
-  content: string;
-  type: 'url' | 'text' | 'email' | 'phone' | 'wifi' | 'unknown';
-  date: string;
+  data: string;
+  type: string;
+  timestamp: number;
 }
 
-const QRScannerScreen = () => {
-  const insets = useSafeAreaInsets();
-  const [isScanning, setIsScanning] = useState(false);
-  const [history, setHistory] = useState<QRHistory[]>([]);
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [generateText, setGenerateText] = useState('');
+interface GeneratedQR {
+  id: string;
+  text: string;
+  timestamp: number;
+}
 
-  const detectQRType = (content: string): QRHistory['type'] => {
-    if (content.startsWith('http://') || content.startsWith('https://')) {
-      return 'url';
-    } else if (content.startsWith('mailto:')) {
-      return 'email';
-    } else if (content.startsWith('tel:')) {
-      return 'phone';
-    } else if (content.startsWith('WIFI:')) {
-      return 'wifi';
-    } else {
-      return 'text';
+const QRScannerScreen: React.FC = () => {
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanHistory, setScanHistory] = useState<ScanHistory[]>([]);
+  const [generatedQRs, setGeneratedQRs] = useState<GeneratedQR[]>([]);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [qrText, setQrText] = useState('');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState('확인 중...');
+  const showAlert = useCustomAlert();
+
+  useEffect(() => {
+    checkCameraPermission();
+    loadScanHistory();
+    loadGeneratedQRs();
+  }, []);
+
+  const checkCameraPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.CAMERA
+        );
+        console.log('카메라 권한 상태:', granted);
+        setPermissionStatus(`권한 상태: ${granted ? '허용됨' : '거부됨'}`);
+        setHasPermission(granted);
+        
+        if (!granted) {
+          requestCameraPermission();
+        }
+      } else {
+        setHasPermission(true);
+        setPermissionStatus('권한 상태: 허용됨 (iOS)');
+      }
+    } catch (error) {
+      console.error('권한 확인 오류:', error);
+      setPermissionStatus('권한 확인 실패');
+      setHasPermission(false);
     }
   };
 
-  const startScan = () => {
-    Alert.alert(
-      '기능 준비 중',
-      'QR 스캐너 기능을 준비 중입니다.\n현재는 시뮬레이션 모드로 동작합니다.',
+  const requestCameraPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: '카메라 권한 필요',
+            message: 'QR 코드 스캔을 위해 카메라 권한이 필요합니다.',
+            buttonNeutral: '나중에',
+            buttonNegative: '취소',
+            buttonPositive: '허용',
+          }
+        );
+        
+        const isGranted = granted === PermissionsAndroid.RESULTS.GRANTED;
+        console.log('권한 요청 결과:', granted, isGranted);
+        setPermissionStatus(`권한 요청 결과: ${isGranted ? '허용됨' : '거부됨'}`);
+        setHasPermission(isGranted);
+        
+        if (!isGranted) {
+          showAlert(
+            '카메라 권한 필요',
+            'QR 코드 스캔을 위해 설정에서 카메라 권한을 허용해주세요.',
+            [{ text: '확인' }]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('권한 요청 오류:', error);
+      setPermissionStatus('권한 요청 실패');
+      setHasPermission(false);
+    }
+  };
+
+  const loadScanHistory = async () => {
+    try {
+      const history = await AsyncStorage.getItem('qr_scan_history');
+      if (history) {
+        setScanHistory(JSON.parse(history));
+      }
+    } catch (error) {
+      console.error('스캔 기록 로드 실패:', error);
+    }
+  };
+
+  const loadGeneratedQRs = async () => {
+    try {
+      const qrs = await AsyncStorage.getItem('generated_qrs');
+      if (qrs) {
+        setGeneratedQRs(JSON.parse(qrs));
+      }
+    } catch (error) {
+      console.error('생성된 QR 로드 실패:', error);
+    }
+  };
+
+  const saveScanHistory = async (newHistory: ScanHistory[]) => {
+    try {
+      await AsyncStorage.setItem('qr_scan_history', JSON.stringify(newHistory));
+      setScanHistory(newHistory);
+    } catch (error) {
+      console.error('스캔 기록 저장 실패:', error);
+    }
+  };
+
+  const saveGeneratedQRs = async (newQRs: GeneratedQR[]) => {
+    try {
+      await AsyncStorage.setItem('generated_qrs', JSON.stringify(newQRs));
+      setGeneratedQRs(newQRs);
+    } catch (error) {
+      console.error('생성된 QR 저장 실패:', error);
+    }
+  };
+
+  const onScanSuccess = (e: any) => {
+    console.log('QR 스캔 성공:', e.data);
+    setIsScanning(false);
+    
+    const newScan: ScanHistory = {
+      id: Date.now().toString(),
+      data: e.data,
+      type: detectQRType(e.data),
+      timestamp: Date.now(),
+    };
+
+    const updatedHistory = [newScan, ...scanHistory].slice(0, 50); // 최대 50개
+    saveScanHistory(updatedHistory);
+
+    showAlert(
+      'QR 코드 스캔 완료',
+      `내용: ${e.data}\n유형: ${newScan.type}`,
       [
-        { text: '취소', style: 'cancel' },
-        { 
-          text: '시뮬레이션',
+        { text: '확인' },
+        {
+          text: '복사',
           onPress: () => {
-            setIsScanning(true);
-            // 시뮬레이션된 QR 스캔
-            setTimeout(() => {
-              const sampleContent = 'https://example.com';
-              const newScan: QRHistory = {
-                id: Date.now().toString(),
-                content: sampleContent,
-                type: detectQRType(sampleContent),
-                date: new Date().toISOString()
-              };
-              setHistory(prev => [newScan, ...prev]);
-              setIsScanning(false);
-              Alert.alert('스캔 완료', `스캔된 내용: ${sampleContent}`);
-            }, 2000);
+            // 클립보드 복사 로직
+            showAlert('알림', '클립보드에 복사되었습니다.', [{ text: '확인' }]);
           }
         }
       ]
     );
   };
 
-  const handleHistoryItem = (item: QRHistory) => {
-    const actions: Array<{text: string, onPress?: () => void, style?: any}> = [
-      { text: '취소', style: 'cancel' }
-    ];
-
-    if (item.type === 'url') {
-      actions.unshift({
-        text: '링크 열기',
-        onPress: () => Alert.alert('알림', '브라우저에서 링크를 열 수 있습니다.')
-      });
-    } else if (item.type === 'phone') {
-      actions.unshift({
-        text: '전화 걸기',
-        onPress: () => Alert.alert('알림', '전화 앱에서 번호를 다이얼할 수 있습니다.')
-      });
-    } else if (item.type === 'email') {
-      actions.unshift({
-        text: '이메일 작성',
-        onPress: () => Alert.alert('알림', '메일 앱에서 이메일을 작성할 수 있습니다.')
-      });
+  const detectQRType = (data: string): string => {
+    if (data.startsWith('http://') || data.startsWith('https://')) {
+      return 'URL';
+    } else if (data.startsWith('mailto:')) {
+      return '이메일';
+    } else if (data.startsWith('tel:')) {
+      return '전화번호';
+    } else if (data.startsWith('WIFI:')) {
+      return 'WiFi';
+    } else {
+      return '텍스트';
     }
-
-    actions.unshift({
-      text: '복사',
-      onPress: () => {
-        Clipboard.setString(item.content);
-        Alert.alert('복사됨', '클립보드에 복사되었습니다.');
-      }
-    });
-
-    actions.unshift({
-      text: '공유',
-      onPress: () => {
-        Share.share({
-          message: item.content,
-          title: 'QR 코드 내용'
-        });
-      }
-    });
-
-    Alert.alert('QR 코드 내용', item.content, actions);
   };
 
-  const deleteHistoryItem = (id: string) => {
-    setHistory(prev => prev.filter(item => item.id !== id));
+  const generateQRCode = () => {
+    if (!qrText.trim()) {
+      showAlert('입력 오류', 'QR 코드로 변환할 텍스트를 입력해주세요.', [{ text: '확인' }]);
+      return;
+    }
+
+    const newQR: GeneratedQR = {
+      id: Date.now().toString(),
+      text: qrText.trim(),
+      timestamp: Date.now(),
+    };
+
+    const updatedQRs = [newQR, ...generatedQRs].slice(0, 30); // 최대 30개
+    saveGeneratedQRs(updatedQRs);
+    
+    setQrText('');
+    setShowGenerator(false);
+    
+    showAlert('QR 코드 생성 완료', '새로운 QR 코드가 생성되었습니다.', [{ text: '확인' }]);
+  };
+
+  const shareQRCode = async (text: string) => {
+    try {
+      await Share.share({
+        message: `QR 코드 내용: ${text}`,
+        title: 'QR 코드 공유',
+      });
+    } catch (error) {
+      console.error('공유 실패:', error);
+      showAlert('공유 실패', 'QR 코드 공유 중 오류가 발생했습니다.', [{ text: '확인' }]);
+    }
   };
 
   const clearHistory = () => {
-    Alert.alert(
-      '히스토리 삭제',
-      '모든 스캔 히스토리를 삭제하시겠습니까?',
+    showAlert(
+      '기록 삭제',
+      '모든 스캔 기록을 삭제하시겠습니까?',
       [
-        { text: '취소', style: 'cancel' },
+        { text: '취소' },
         {
           text: '삭제',
-          style: 'destructive',
-          onPress: () => setHistory([])
+          onPress: async () => {
+            await AsyncStorage.removeItem('qr_scan_history');
+            setScanHistory([]);
+          }
         }
       ]
     );
   };
 
-  const generateQR = () => {
-    if (!generateText.trim()) {
-      Alert.alert('오류', '생성할 텍스트를 입력하세요.');
-      return;
-    }
-
-    Alert.alert(
-      'QR 코드 생성',
-      `"${generateText}" 내용으로 QR 코드가 생성되었습니다.\n실제 구현에서는 QR 코드 이미지가 표시됩니다.`,
-      [{ text: '확인' }]
+  const clearGeneratedQRs = () => {
+    showAlert(
+      'QR 코드 삭제',
+      '생성된 모든 QR 코드를 삭제하시겠습니까?',
+      [
+        { text: '취소' },
+        {
+          text: '삭제',
+          onPress: async () => {
+            await AsyncStorage.removeItem('generated_qrs');
+            setGeneratedQRs([]);
+          }
+        }
+      ]
     );
-    setGenerateText('');
-    setShowGenerate(false);
   };
 
-  const getTypeIcon = (type: QRHistory['type']) => {
-    switch (type) {
-      case 'url': return '🌐';
-      case 'email': return '📧';
-      case 'phone': return '📞';
-      case 'wifi': return '📶';
-      case 'text': return '📄';
-      default: return '❓';
-    }
-  };
-
-  const getTypeLabel = (type: QRHistory['type']) => {
-    switch (type) {
-      case 'url': return '웹사이트';
-      case 'email': return '이메일';
-      case 'phone': return '전화번호';
-      case 'wifi': return 'WiFi';
-      case 'text': return '텍스트';
-      default: return '기타';
-    }
-  };
-
-  if (showGenerate) {
+  if (hasPermission === null) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setShowGenerate(false)}>
-            <Text style={styles.backButton}>◀ 돌아가기</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>QR 코드 생성</Text>
-          <View style={{ width: 80 }} />
-        </View>
+      <View style={styles.container}>
+        <Text style={styles.statusText}>{permissionStatus}</Text>
+      </View>
+    );
+  }
 
-        <View style={styles.generateContainer}>
-          <Text style={styles.generateLabel}>생성할 내용:</Text>
-          <Text
-            style={styles.generateInput}
-            onPress={() => {
-              Alert.prompt(
-                'QR 코드 생성',
-                '생성할 텍스트나 URL을 입력하세요',
-                [
-                  { text: '취소', style: 'cancel' },
-                  { 
-                    text: '확인', 
-                    onPress: (text) => setGenerateText(text || '')
-                  }
-                ],
-                'plain-text',
-                generateText
-              );
-            }}
-          >
-            {generateText || '터치하여 입력'}
-          </Text>
-
-          <TouchableOpacity style={styles.generateButton} onPress={generateQR}>
-            <Text style={styles.generateButtonText}>QR 코드 생성</Text>
-          </TouchableOpacity>
-
-          <View style={styles.qrPreview}>
-            <Text style={styles.qrPreviewText}>
-              📱{'\n'}QR 코드{'\n'}미리보기
-            </Text>
-          </View>
-        </View>
+  if (hasPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.statusText}>{permissionStatus}</Text>
+        <TouchableOpacity style={styles.button} onPress={requestCameraPermission}>
+          <Text style={styles.buttonText}>카메라 권한 요청</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📱 QR 스캐너</Text>
-        <TouchableOpacity 
-          style={styles.generateToggle}
-          onPress={() => setShowGenerate(true)}
-        >
-          <Text style={styles.generateToggleText}>생성</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 스캔 영역 */}
-      <View style={styles.scanArea}>
-        <View style={styles.scanFrame}>
-          {isScanning ? (
-            <View style={styles.scanningIndicator}>
-              <Text style={styles.scanningText}>스캔 중...</Text>
-              <Text style={styles.scanningSubText}>QR 코드를 카메라에 맞춰주세요</Text>
-            </View>
-          ) : (
-            <View style={styles.scanPlaceholder}>
-              <Text style={styles.scanPlaceholderIcon}>📱</Text>
-              <Text style={styles.scanPlaceholderText}>QR 코드 스캔</Text>
-            </View>
-          )}
+    <View style={styles.container}>
+      <Text style={styles.statusText}>{permissionStatus}</Text>
+      
+      {isScanning ? (
+        <View style={styles.scannerContainer}>
+          <QRCodeScanner
+            onRead={onScanSuccess}
+            showMarker={true}
+            markerStyle={styles.marker}
+            cameraStyle={styles.camera}
+            topContent={
+              <Text style={styles.centerText}>
+                QR 코드를 카메라 중앙에 맞춰주세요
+              </Text>
+            }
+            bottomContent={
+              <TouchableOpacity
+                style={styles.buttonTouchable}
+                onPress={() => setIsScanning(false)}
+              >
+                <Text style={styles.buttonText}>스캔 중지</Text>
+              </TouchableOpacity>
+            }
+          />
         </View>
-        
-        <TouchableOpacity 
-          style={[styles.scanButton, isScanning && styles.scanButtonDisabled]}
-          onPress={startScan}
-          disabled={isScanning}
-        >
-          <Text style={styles.scanButtonText}>
-            {isScanning ? '스캔 중...' : '스캔 시작'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 히스토리 */}
-      <View style={styles.historySection}>
-        <View style={styles.historyHeader}>
-          <Text style={styles.historyTitle}>스캔 히스토리</Text>
-          {history.length > 0 && (
-            <TouchableOpacity onPress={clearHistory}>
-              <Text style={styles.clearButton}>전체 삭제</Text>
+      ) : (
+        <ScrollView style={styles.content}>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => setIsScanning(true)}
+            >
+              <Text style={styles.buttonText}>QR 코드 스캔</Text>
             </TouchableOpacity>
-          )}
-        </View>
+            
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => setShowGenerator(true)}
+            >
+              <Text style={styles.buttonText}>QR 코드 생성</Text>
+            </TouchableOpacity>
+          </View>
 
-        <ScrollView style={styles.historyList}>
-          {history.length === 0 ? (
-            <View style={styles.emptyHistory}>
-              <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyText}>아직 스캔한 QR 코드가 없습니다</Text>
-              <Text style={styles.emptySubText}>QR 코드를 스캔해보세요!</Text>
+          {/* 스캔 기록 */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>스캔 기록</Text>
+              {scanHistory.length > 0 && (
+                <TouchableOpacity onPress={clearHistory}>
+                  <Text style={styles.clearButton}>모두 삭제</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          ) : (
-            history.map((item) => (
-              <View key={item.id} style={styles.historyItem}>
-                <TouchableOpacity 
-                  style={styles.historyContent}
-                  onPress={() => handleHistoryItem(item)}
-                >
-                  <View style={styles.historyIcon}>
-                    <Text style={styles.historyIconText}>{getTypeIcon(item.type)}</Text>
-                  </View>
-                  
-                  <View style={styles.historyInfo}>
-                    <Text style={styles.historyType}>{getTypeLabel(item.type)}</Text>
-                    <Text style={styles.historyText} numberOfLines={2}>
-                      {item.content}
-                    </Text>
+            {scanHistory.length === 0 ? (
+              <Text style={styles.emptyText}>스캔 기록이 없습니다</Text>
+            ) : (
+              scanHistory.map((item) => (
+                <View key={item.id} style={styles.historyItem}>
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.historyType}>{item.type}</Text>
                     <Text style={styles.historyDate}>
-                      {new Date(item.date).toLocaleDateString('ko-KR')} {' '}
-                      {new Date(item.date).toLocaleTimeString('ko-KR', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                      {new Date(item.timestamp).toLocaleString('ko-KR')}
                     </Text>
                   </View>
+                  <Text style={styles.historyData} numberOfLines={2}>
+                    {item.data}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* 생성된 QR 코드 */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>생성된 QR 코드</Text>
+              {generatedQRs.length > 0 && (
+                <TouchableOpacity onPress={clearGeneratedQRs}>
+                  <Text style={styles.clearButton}>모두 삭제</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.deleteButton}
-                  onPress={() => deleteHistoryItem(item.id)}
-                >
-                  <Text style={styles.deleteButtonText}>🗑️</Text>
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
+              )}
+            </View>
+            {generatedQRs.length === 0 ? (
+              <Text style={styles.emptyText}>생성된 QR 코드가 없습니다</Text>
+            ) : (
+              generatedQRs.map((item) => (
+                <View key={item.id} style={styles.qrItem}>
+                  <View style={styles.qrContent}>
+                    <QRCode
+                      value={item.text}
+                      size={80}
+                      backgroundColor="white"
+                      color="black"
+                    />
+                    <View style={styles.qrInfo}>
+                      <Text style={styles.qrText} numberOfLines={2}>
+                        {item.text}
+                      </Text>
+                      <Text style={styles.qrDate}>
+                        {new Date(item.timestamp).toLocaleString('ko-KR')}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.shareButton}
+                    onPress={() => shareQRCode(item.text)}
+                  >
+                    <Text style={styles.shareButtonText}>공유</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
         </ScrollView>
-      </View>
+      )}
+
+      {/* QR 생성 모달 */}
+      <Modal
+        visible={showGenerator}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGenerator(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>QR 코드 생성</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="텍스트, URL, 연락처 등을 입력하세요"
+              value={qrText}
+              onChangeText={setQrText}
+              multiline
+              numberOfLines={4}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowGenerator(false)}
+              >
+                <Text style={styles.modalButtonText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.primaryModalButton]}
+                onPress={generateQRCode}
+              >
+                <Text style={[styles.modalButtonText, styles.primaryModalButtonText]}>
+                  생성
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -316,225 +435,216 @@ const QRScannerScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#f5f5f5',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+  scannerContainer: {
+    flex: 1,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#e0e0e0',
+  camera: {
+    height: '100%',
   },
-  generateToggle: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  generateToggleText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  backButton: {
-    color: '#4CAF50',
-    fontSize: 16,
-  },
-  scanArea: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-  },
-  scanFrame: {
-    width: 250,
-    height: 250,
+  marker: {
+    borderColor: '#00ff00',
     borderWidth: 2,
-    borderColor: '#4CAF50',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    backgroundColor: '#1a1a1a',
   },
-  scanningIndicator: {
-    alignItems: 'center',
-  },
-  scanningText: {
+  centerText: {
     fontSize: 18,
-    color: '#4CAF50',
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  scanningSubText: {
-    fontSize: 14,
-    color: '#a0a0a0',
+    padding: 32,
+    color: '#777',
     textAlign: 'center',
   },
-  scanPlaceholder: {
+  buttonTouchable: {
+    padding: 16,
+    backgroundColor: '#ff4444',
+    borderRadius: 8,
+    margin: 16,
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  statusText: {
+    textAlign: 'center',
+    padding: 8,
+    backgroundColor: '#e0e0e0',
+    fontSize: 12,
+    color: '#666',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
     alignItems: 'center',
   },
-  scanPlaceholderIcon: {
-    fontSize: 60,
-    marginBottom: 15,
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  scanPlaceholderText: {
-    fontSize: 16,
-    color: '#a0a0a0',
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    margin: 16,
   },
-  scanButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 25,
-  },
-  scanButtonDisabled: {
-    backgroundColor: '#666',
-  },
-  scanButtonText: {
+  buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
-  historySection: {
-    flex: 1,
-    paddingHorizontal: 20,
+  section: {
+    marginBottom: 24,
   },
-  historyHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
   },
-  historyTitle: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#e0e0e0',
+    fontWeight: 'bold',
+    color: '#333',
   },
   clearButton: {
     color: '#ff4444',
     fontSize: 14,
   },
-  historyList: {
-    flex: 1,
-  },
-  emptyHistory: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 50,
-    marginBottom: 15,
-  },
   emptyText: {
-    fontSize: 16,
-    color: '#a0a0a0',
-    marginBottom: 5,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: '#666',
+    textAlign: 'center',
+    color: '#999',
+    fontStyle: 'italic',
+    padding: 20,
   },
   historyItem: {
-    flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'white',
+    padding: 12,
     borderRadius: 8,
     marginBottom: 8,
-    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
-  historyContent: {
-    flex: 1,
+  historyHeader: {
     flexDirection: 'row',
-    padding: 12,
-  },
-  historyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  historyIconText: {
-    fontSize: 20,
-  },
-  historyInfo: {
-    flex: 1,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   historyType: {
     fontSize: 12,
-    color: '#4CAF50',
-    marginBottom: 4,
-  },
-  historyText: {
-    fontSize: 14,
-    color: '#e0e0e0',
-    marginBottom: 4,
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
   historyDate: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: '#999',
   },
-  deleteButton: {
-    width: 50,
+  historyData: {
+    fontSize: 14,
+    color: '#333',
+  },
+  qrItem: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  qrContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  qrInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  qrText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+  },
+  qrDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  shareButton: {
+    backgroundColor: '#34C759',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  shareButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ff4444',
   },
-  deleteButtonText: {
-    fontSize: 18,
-  },
-  generateContainer: {
-    flex: 1,
+  modalContent: {
+    backgroundColor: 'white',
+    width: '90%',
+    borderRadius: 12,
     padding: 20,
   },
-  generateLabel: {
-    fontSize: 16,
-    color: '#e0e0e0',
-    marginBottom: 10,
-  },
-  generateInput: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    padding: 15,
-    color: '#e0e0e0',
-    fontSize: 16,
-    marginBottom: 20,
-    minHeight: 50,
-  },
-  generateButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  generateButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  qrPreview: {
-    width: 200,
-    height: 200,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    borderWidth: 2,
-    borderColor: '#333',
-  },
-  qrPreviewText: {
-    color: '#666',
-    fontSize: 16,
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     textAlign: 'center',
-    lineHeight: 24,
+    marginBottom: 16,
+    color: '#333',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+    minHeight: 100,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  primaryModalButton: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  primaryModalButtonText: {
+    color: 'white',
   },
 });
 

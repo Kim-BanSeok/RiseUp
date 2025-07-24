@@ -12,6 +12,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 import CustomAlert from './src/components/CustomAlert';
 import GlobalAlert from './src/utils/GlobalAlert';
 
+console.log('=== App.tsx loaded ===');
+
 function App(): React.JSX.Element {
   const [showSplash, setShowSplash] = useState(true);
   
@@ -32,6 +34,7 @@ function App(): React.JSX.Element {
   });
 
   const handleSplashEnd = () => {
+    console.log('=== Splash screen ended ===');
     setShowSplash(false);
   };
 

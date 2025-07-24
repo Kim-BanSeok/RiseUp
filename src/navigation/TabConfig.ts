@@ -1,10 +1,10 @@
 import { TabConfig } from '../components/CustomTabBar';
-import HomeScreen from '../screens/HomeScreen';
-import StopwatchScreen from '../screens/StopwatchScreen';
-import TimerScreen from '../screens/TimerScreen';
-import WorldClockScreen from '../screens/WorldClockScreen';
-import IntervalSignalScreen from '../screens/IntervalSignalScreen';
-import SportsTimerScreen from '../screens/SportsTimerScreen';
+import HomeScreen from '../screens/alarm/HomeScreen';
+import StopwatchScreen from '../screens/stopwatch/StopwatchScreen';
+import TimerScreen from '../screens/timer/TimerScreen';
+import WorldClockScreen from '../screens/worldclock/WorldClockScreen';
+import IntervalSignalScreen from '../screens/interval/IntervalSignalScreen';
+import SportsTimerScreen from '../screens/sports/SportsTimerScreen';
 
 export const DEFAULT_TABS: TabConfig[] = [
   {

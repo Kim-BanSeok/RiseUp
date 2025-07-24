@@ -1,6 +1,10 @@
 pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
-plugins { id("com.facebook.react.settings") }
+  plugins {
+      id("com.facebook.react.settings") version "0.80.1"
+  }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'RiseUp'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
+  include ':react-native-share'
+  project(':react-native-share').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-share/android')
